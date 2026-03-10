@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import { motion } from "framer-motion"
-import { ArrowUpRight, Shield, Globe, Lock, Code, Database, Server, Star, PlayCircle, Plus } from "lucide-react"
+import { ArrowUpRight, Shield, Globe, Lock, Code, Database, Server, Star, Plus, Camera, Activity } from "lucide-react"
 import Link from "next/link"
 
 const fadeInUp = {
@@ -76,7 +76,7 @@ export default function Home() {
       {/* Logo Wall */}
       <section className="py-16 border-y border-gray-100 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-6">
-          <p className="text-center text-sm font-semibold text-gray-500 mb-8 uppercase tracking-widest">Trusted by the world's most innovative teams</p>
+          <p className="text-center text-sm font-semibold text-gray-500 mb-8 uppercase tracking-widest">Trusted by the world&apos;s most innovative teams</p>
           <div className="flex flex-wrap justify-center gap-12 md:gap-24 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
             <Globe className="w-12 h-12" />
             <Server className="w-12 h-12" />
@@ -100,7 +100,7 @@ export default function Home() {
             </div>
 
             <p className="text-gray-600 mb-10 leading-relaxed text-lg">
-              Our mission is to arm organizations with the tools and expertise they need to defend against the ever-evolving landscape of cyber threats. We deliver comprehensive, proactive security solutions tailored to your unique infrastructure.
+              Our mission is to safeguard personal privacy by detecting unauthorized webcam activity and preventing potential surveillance threats. Huristi combines intelligent process analysis with automated hardware containment to protect users from hidden digital intrusions.
             </p>
 
             <button className="bg-gray-900 text-white px-8 py-4 font-medium hover:bg-[#0066FF] clip-diagonal transition-colors">
@@ -135,9 +135,9 @@ export default function Home() {
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { icon: Shield, title: "Network Security", desc: "Protect your infrastructure from unauthorized access and cyber attacks." },
-              { icon: Database, title: "Data Protection", desc: "Ensure your sensitive data remains confidential and secure." },
-              { icon: Lock, title: "Cloud Security", desc: "Secure your cloud environments and applications effectively." },
+              { icon: Camera, title: "Camera & Microphone Monitoring", desc: "Detect unauthorized access to cameras and microphones by monitoring Windows privacy consent registry activity and identifying active applications using these devices." },
+              { icon: Activity, title: "Heuristic Threat Detection", desc: "Analyze running processes using behavioral indicators like abnormal thread activity and unusual system write patterns to identify potentially malicious applications." },
+              { icon: Lock, title: "Hardware Kill-Switch Protection", desc: "Automatically disable compromised camera or microphone hardware when suspicious behavior crosses the threat threshold, preventing unauthorized surveillance instantly." },
             ].map((service, i) => (
               <motion.div key={i} initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="bg-white p-8 border border-gray-100 hover:shadow-xl transition-all group clip-diagonal-top-left cursor-pointer">
                 <div className="w-16 h-16 bg-blue-50 text-[#0066FF] rounded-none clip-diagonal flex items-center justify-center mb-6 group-hover:bg-[#0066FF] group-hover:text-white transition-colors">
@@ -154,75 +154,36 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats Counter */}
-      <section className="bg-[#0066FF] text-white py-20 px-6">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-12 text-center divide-x divide-white/20">
-          {[
-            { value: "30+", label: "Years Experience" },
-            { value: "1200+", label: "Solutions Delivered" },
-            { value: "100%", label: "Satisfaction Rate" },
-            { value: "2.9%", label: "Average Growth" }
-          ].map((stat, i) => (
-            <div key={i} className="pl-0 border-l first:border-l-0 border-white/20 pt-4 md:pt-0">
-              <p className="text-5xl md:text-6xl font-black mb-4">{stat.value}</p>
-              <p className="text-white/80 font-medium uppercase tracking-wider text-sm">{stat.label}</p>
+      {/* Scrolling Marquee Banner */}
+      <section className="bg-[#0066FF] text-white py-12 md:py-20 overflow-hidden flex items-center relative select-none">
+        <motion.div
+          animate={{ x: [0, -2000] }}
+          transition={{ ease: "linear", duration: 15, repeat: Infinity }}
+          className="flex whitespace-nowrap gap-12 md:gap-24"
+        >
+          {Array.from({ length: 20 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-12 md:gap-24">
+              <span className="text-6xl md:text-8xl lg:text-[10rem] font-black tracking-tighter text-transparent" style={{ WebkitTextStroke: '2px rgba(255,255,255,0.8)' }}>
+                HURISTI
+              </span>
+              <span className="text-6xl md:text-8xl lg:text-[10rem] font-black tracking-tighter text-white opacity-90">
+                HURISTI
+              </span>
             </div>
           ))}
-        </div>
+        </motion.div>
       </section>
 
-      {/* Video CTA */}
-      <section className="py-32 px-6">
+      <section className="py-60 px-6">
         <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-bold mb-16 leading-tight">Passwords matter more than you think.</h2>
-          <div className="relative aspect-video bg-gray-900 w-full rounded-2xl overflow-hidden clip-diagonal-top-left group cursor-pointer shadow-xl">
-            <Image src="/images/video_thumbnail_1773148219266.png" alt="Video thumbnail" fill className="object-cover opacity-60 group-hover:scale-105 group-hover:opacity-80 transition-all duration-700" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="relative w-32 h-32 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
-                <div className="absolute inset-0 border-2 border-white/30 rounded-full animate-[spin_10s_linear_infinite]" />
-                <PlayCircle className="w-16 h-16 text-white bg-[#0066FF]/90 backdrop-blur rounded-full p-2 group-hover:bg-[#0066FF] transition-colors" />
-              </div>
-            </div>
-          </div>
+          <h2 className="text-4xl md:text-5xl font-bold leading-tight">Your camera sees more than you realize.</h2>
         </div>
       </section>
 
-      {/* Case Studies */}
-      <section className="py-32 px-6 bg-gray-50 border-t border-gray-100">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-16">
-            <div>
-              <span className="text-[#0066FF] font-bold tracking-wider text-sm uppercase mb-4 block">.Case Studies</span>
-              <h2 className="text-4xl md:text-5xl font-bold">Our Latest Projects</h2>
-            </div>
-            <button className="flex items-center gap-2 mt-6 md:mt-0 font-bold hover:text-[#0066FF] transition-colors uppercase">
-              VIEW ALL PROJECTS <ArrowUpRight className="w-5 h-5" />
-            </button>
-          </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              { title: "Financial Security Upgrade", client: "FinBank", time: "3 Months", img: "/images/case_study_1_1773148235144.png" },
-              { title: "Healthcare Data Protection", client: "MediCare", time: "6 Months", img: "/images/case_study_2_1773148252247.png" },
-              { title: "E-Commerce Fraud Prevention", client: "ShopGlobal", time: "2 Months", img: "/images/case_study_1_1773148235144.png" },
-            ].map((study, i) => (
-              <motion.div key={i} initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="group cursor-pointer">
-                <div className="aspect-[4/3] bg-gray-200 mb-6 clip-diagonal-top-left relative overflow-hidden">
-                  <Image src={study.img} alt={study.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
-                </div>
-                <h3 className="text-2xl font-bold mb-4 group-hover:text-[#0066FF] transition-colors">{study.title}</h3>
-                <div className="flex gap-6 text-sm text-gray-500 font-medium">
-                  <p>Client: <span className="text-gray-900">{study.client}</span></p>
-                  <p>Timeline: <span className="text-gray-900">{study.time}</span></p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* Leadership */}
-      <section className="py-32 px-6 bg-black text-white">
+      {/* <section className="py-32 px-6 bg-black text-white">
         <div className="max-w-7xl mx-auto">
           <div className="mb-16">
             <span className="text-[#0066FF] font-bold tracking-wider text-sm uppercase mb-4 block">.Our Leadership</span>
@@ -244,43 +205,15 @@ export default function Home() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
-      {/* Testimonials */}
-      <section className="py-32 px-6">
-        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
-          <div className="grid grid-cols-2 gap-4">
-            {/* 4 avatars arranged in a grid or C shape */}
-            <div className="aspect-square bg-gray-200 clip-diagonal-top-left relative grayscale hover:grayscale-0 transition-all cursor-pointer"><Image src="/images/about_company_image_1773148174495.png" alt="Avatar" fill className="object-cover" /></div>
-            <div className="aspect-square bg-[#0066FF] text-white flex items-center justify-center p-8 text-center text-xl md:text-2xl leading-none font-bold clip-diagonal relative translate-y-8">400+<br /><span className="text-sm font-medium mt-2 block opacity-80 uppercase tracking-widest">Reviews</span></div>
-            <div className="aspect-square bg-gray-200 clip-diagonal relative grayscale hover:grayscale-0 transition-all cursor-pointer"><Image src="/images/about_company_image_1773148174495.png" alt="Avatar" fill className="object-cover" /></div>
-            <div className="aspect-square bg-gray-200 object-cover relative grayscale hover:grayscale-0 transition-all cursor-pointer"><Image src="/images/about_company_image_1773148174495.png" alt="Avatar" fill className="object-cover" /></div>
-          </div>
-
-          <div className="bg-gray-50 p-12 md:p-16 clip-diagonal-top-left border border-gray-100 relative">
-            <div className="absolute top-0 right-12 w-16 h-16 bg-[#0066FF] text-white flex items-center justify-center clip-diagonal -translate-y-1/2 shadow-lg">
-              <Star className="fill-white w-6 h-6" />
-            </div>
-            <div className="flex gap-1 text-yellow-400 mb-8">
-              {[1, 2, 3, 4, 5].map(i => <Star key={i} className="fill-current w-5 h-5" />)}
-            </div>
-            <p className="text-xl md:text-2xl font-medium leading-relaxed mb-8 italic text-gray-800">
-              "Their cybersecurity team fundamentally transformed our network defenses. We went from constant breaches to zero incidents in the last year. Truly exceptional expertise."
-            </p>
-            <div>
-              <h4 className="font-bold text-lg">Sarah Jenkins</h4>
-              <p className="text-[#0066FF] text-sm font-medium">CTO, Global Tech</p>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* Footer */}
       <footer className="bg-[#0A0A0A] text-white pt-24 pb-12 px-6 border-t-[8px] border-[#0066FF]">
         <div className="max-w-7xl mx-auto text-center mb-24">
           <h2 className="text-5xl md:text-7xl font-bold mb-8 uppercase tracking-tighter">Ready To Discuss?</h2>
           <button className="bg-[#0066FF] text-white px-12 py-5 text-xl font-bold hover:bg-white hover:text-black transition-colors clip-diagonal">
-            LET'S TALK
+            LET&apos;S TALK
           </button>
         </div>
 

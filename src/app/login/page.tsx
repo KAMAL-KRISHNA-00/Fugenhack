@@ -21,11 +21,9 @@ export default function LoginPage() {
         // Simulate network delay
         setTimeout(() => {
             if (username === "admin" && password === "admin123") {
-                router.push("/dashboard/admin")
-            } else if (username === "user" && password === "user123") {
-                router.push("/dashboard/user")
+                router.push("/dashboard")
             } else {
-                setError("Invalid username or password. Try admin/admin123 or user/user123")
+                setError("Invalid username or password. Try admin/admin123")
                 setIsLoading(false)
             }
         }, 800)
@@ -78,7 +76,7 @@ export default function LoginPage() {
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     className="focus:ring-[#0066FF] focus:border-[#0066FF] block w-full pl-10 sm:text-sm border-gray-300 bg-gray-50 p-3 border outline-none transition-colors"
-                                    placeholder="admin or user"
+                                    placeholder="admin"
                                 />
                             </div>
                         </div>
@@ -156,8 +154,6 @@ export default function LoginPage() {
                             <p>Demo Credentials:</p>
                             <div className="flex justify-center gap-4 border border-gray-200 py-2 mt-2 bg-gray-50">
                                 <div><span className="font-semibold text-gray-700">Admin:</span> admin / admin123</div>
-                                <div><span className="border-l border-gray-300 mx-1 h-full block"></span></div>
-                                <div><span className="font-semibold text-gray-700">User:</span> user / user123</div>
                             </div>
                         </div>
                     </form>

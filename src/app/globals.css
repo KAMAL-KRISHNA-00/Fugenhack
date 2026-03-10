@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -29,6 +31,31 @@ body {
   clip-path: polygon(30px 0, 100% 0, 100% 100%, 0 100%, 0 30px);
 }
 
+@utility clip-diagonal-sm {
+  clip-path: polygon(12px 0, 100% 0, 100% 100%, 0 100%, 0 12px);
+}
+
 @utility clip-diagonal-both {
   clip-path: polygon(30px 0, 100% 0, 100% calc(100% - 30px), calc(100% - 30px) 100%, 0 100%, 0 30px);
+}
+
+@utility clip-v-bottom {
+  clip-path: polygon(0 0, 100% 0, 100% 85%, 50% 100%, 0 85%);
+}
+
+@utility clip-v-cyber {
+  clip-path: polygon(30px 0, 100% 0, 100% 88%, 50% 100%, 0 88%, 0 30px);
+}
+
+.scrollbar-custom::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-track {
+  background-color: #f9fafb;
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 3px;
 }
