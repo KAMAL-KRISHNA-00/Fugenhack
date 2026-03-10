@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Image from "next/image"
 import { motion } from "framer-motion"
 import { ArrowUpRight, Shield, Globe, Lock, Code, Database, Server, Star, Plus, Camera, Activity } from "lucide-react"
@@ -11,24 +12,77 @@ const fadeInUp = {
 }
 
 export default function Home() {
+  const [heroKey, setHeroKey] = useState(0);
+  const [aboutKey, setAboutKey] = useState(0);
+
+  const coolScroll = (targetId: string) => {
+    const target = document.getElementById(targetId);
+    if (!target) return;
+
+    if (targetId === 'home') setHeroKey(prev => prev + 1);
+    if (targetId === 'about') setAboutKey(prev => prev + 1);
+
+    const targetPosition = target.getBoundingClientRect().top + window.pageYOffset;
+    const startPosition = window.pageYOffset;
+    const distance = targetPosition - startPosition;
+    const duration = 1500; // 1.5s for a majestic glide
+    let start: number | null = null;
+
+    const easeOutQuart = (t: number) => 1 - (--t) * t * t * t;
+
+    const step = (timestamp: number) => {
+      if (!start) start = timestamp;
+      const elapsed = timestamp - start;
+      const progress = Math.min(elapsed / duration, 1);
+
+      window.scrollTo(0, startPosition + distance * easeOutQuart(progress));
+
+      if (progress < 1) {
+        window.requestAnimationFrame(step);
+      }
+    };
+    window.requestAnimationFrame(step);
+  };
+
   return (
-    <div className="min-h-screen bg-white text-gray-900 overflow-hidden font-sans">
+    <div id="home" className="min-h-screen bg-white text-gray-900 overflow-hidden font-sans">
       {/* Navigation */}
       <header className="fixed top-0 w-full bg-white/80 backdrop-blur-md z-50 border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Shield className="w-8 h-8 text-[#0066FF]" />
-            <span className="font-bold text-xl tracking-tight">Huristi</span>
-          </div>
+        <motion.div
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between"
+        >
+          <button
+            onClick={() => coolScroll('home')}
+            className="flex items-center gap-4 cursor-pointer outline-none group"
+          >
+            <div className="w-12 h-12 relative rounded-xl overflow-hidden bg-white shadow-sm border border-gray-100 group-hover:shadow-md transition-shadow">
+              <Image src="/images/logo.png" alt="Huristi Logo" fill className="object-cover" />
+            </div>
+            <span className="font-bold text-xl tracking-tight uppercase text-gray-900 group-hover:text-[#0066FF] transition-colors">Huristi</span>
+          </button>
           <nav className="hidden md:flex gap-8 font-medium text-sm text-gray-700">
-            <Link href="#" className="text-[#0066FF]">Home</Link>
-            <Link href="#" className="hover:text-[#0066FF] transition-colors">About Us</Link>
-
+            {['Home', 'About'].map((item) => (
+              <button
+                key={item}
+                onClick={() => coolScroll(item.toLowerCase())}
+                className="relative group py-2 outline-none"
+              >
+                <span className="group-hover:text-[#0066FF] transition-colors">
+                  {item}
+                </span>
+                <motion.span
+                  className="absolute bottom-0 left-0 w-full h-0.5 bg-[#0066FF] scale-x-0 group-hover:scale-x-100 transition-transform origin-left"
+                />
+              </button>
+            ))}
           </nav>
-          <Link href="/login" className="hidden md:flex items-center gap-2 bg-[#0066FF] text-white px-6 py-2.5 rounded-none clip-diagonal font-medium hover:bg-blue-700 transition-colors">
+          <Link href="/login" className="hidden md:flex items-center gap-2 bg-[#0066FF] text-white px-6 py-2.5 rounded-none clip-diagonal font-medium hover:bg-blue-700 transition-colors shadow-lg hover:shadow-blue-500/20 active:scale-95 transition-all">
             Login <ArrowUpRight className="w-4 h-4" />
           </Link>
-        </div>
+        </motion.div>
       </header>
 
       {/* Hero Section */}
@@ -36,7 +90,7 @@ export default function Home() {
         {/* Background Network Pattern - simple CSS placeholder */}
         <div className="absolute inset-0 z-0 bg-no-repeat bg-center opacity-40" style={{ backgroundImage: "url('/images/business_network_bg_1773148190638.png')", backgroundSize: "cover" }} />
 
-        <div className="relative z-10 max-w-5xl mx-auto">
+        <div key={heroKey} className="relative z-10 max-w-5xl mx-auto">
           <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
             <span className="inline-block px-4 py-1.5 rounded-full border border-gray-200 text-sm font-semibold tracking-wider text-gray-600 mb-8 uppercase bg-white/50 backdrop-blur-sm">
               Elevate Your Security
@@ -88,9 +142,9 @@ export default function Home() {
       </section>
 
       {/* About Section */}
-      <section className="py-32 px-6">
+      <section id="about" className="py-32 px-6">
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp}>
+          <motion.div key={aboutKey} initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp}>
             <span className="text-[#0066FF] font-bold tracking-wider text-sm uppercase mb-4 block">.About Our Company</span>
             <h2 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">We provide the best security solutions</h2>
 
@@ -113,8 +167,7 @@ export default function Home() {
               <Image src="/images/about_company_image_1773148174495.png" alt="About us" fill className="object-cover" />
             </div>
             <div className="absolute -bottom-10 -left-10 bg-[#0066FF] text-white p-8 clip-diagonal shadow-2xl">
-              <p className="text-4xl font-bold mb-2">1200+</p>
-              <p className="text-sm font-medium opacity-90">Successful projects</p>
+              
             </div>
           </motion.div>
         </div>

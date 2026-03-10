@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Shield, ShieldAlert, MonitorX, MicOff, WifiOff, RotateCcw, AlertTriangle, Users, Activity, Settings, LogOut, ChevronRight, BarChart3, Bell } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { Sparkline } from '@/components/Sparkline'
 import { SlaveDevice, LogEntry, CommandType } from '@/types'
 
@@ -117,10 +118,12 @@ export default function AdminDashboard() {
             </div>
 
             {/* Sidebar */}
-            <aside className="w-64 bg-gray-900 border-r border-transparent dark:border-gray-800 text-white min-h-screen shrink-0 z-40 hidden md:flex flex-col">
-                <div className="h-20 flex items-center px-6 border-b border-gray-800 shrink-0">
-                    <Shield className="w-8 h-8 text-[#0066FF] mr-3" />
-                    <span className="font-bold text-xl tracking-tight uppercase">Admin Panel</span>
+            <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white min-h-screen shrink-0 z-40 hidden md:flex flex-col transition-colors duration-200">
+                <div className="h-20 flex items-center px-6 border-b border-gray-200 dark:border-gray-800 shrink-0">
+                    <div className="w-12 h-12 relative mr-3 dark:invert dark:brightness-200 rounded-xl overflow-hidden bg-white shadow-sm border border-gray-100 dark:border-gray-800">
+                        <Image src="/images/logo.png" alt="Huristi Logo" fill className="object-cover" />
+                    </div>
+                    <span className="font-bold text-xl tracking-tight uppercase text-[#0066FF]">Admin Hub</span>
                 </div>
 
                 <div className="flex-1 py-8 px-4 flex flex-col gap-2 overflow-y-auto">
@@ -136,7 +139,7 @@ export default function AdminDashboard() {
                             onClick={() => setActiveTab(item.id)}
                             className={`flex items-center justify-between w-full px-4 py-3 text-sm font-medium transition-colors clip-diagonal-top-left ${activeTab === item.id
                                 ? "bg-[#0066FF] text-white"
-                                : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                                : "text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
                                 }`}
                         >
                             <div className="flex items-center">
@@ -152,8 +155,8 @@ export default function AdminDashboard() {
                     ))}
                 </div>
 
-                <div className="p-4 border-t border-gray-800 shrink-0">
-                    <Link href="/login" className="flex items-center px-4 py-3 text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors clip-diagonal-top-left">
+                <div className="p-4 border-t border-gray-200 dark:border-gray-800 shrink-0">
+                    <Link href="/login" className="flex items-center px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-colors clip-diagonal-top-left">
                         <LogOut className="w-5 h-5 mr-3" />
                         Sign Out
                     </Link>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Shield, Lock, User, ArrowRight, AlertCircle } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 
 export default function LoginPage() {
     const router = useRouter()
@@ -37,8 +38,8 @@ export default function LoginPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="flex justify-center flex-col items-center"
                 >
-                    <div className="w-16 h-16 bg-[#0066FF] clip-diagonal flex items-center justify-center mb-6">
-                        <Shield className="w-8 h-8 text-white" />
+                    <div className="w-32 h-32 relative mb-6 rounded-3xl overflow-hidden bg-white shadow-xl border border-gray-100">
+                        <Image src="/images/logo.png" alt="Huristi Logo" fill className="object-cover" />
                     </div>
                     <h2 className="text-center text-3xl font-extrabold text-gray-900 tracking-tight">
                         Sign in to your account
