@@ -6,6 +6,7 @@ import { Shield, ShieldAlert, MonitorX, MicOff, WifiOff, RotateCcw, AlertTriangl
 import Link from "next/link"
 import { Sparkline } from '@/components/Sparkline'
 import { SlaveDevice, LogEntry, CommandType } from '@/types'
+import SettingsView from './SettingsView'
 
 // Mock data for initial UI build
 const MOCK_DEVICES: Record<string, SlaveDevice> = {
@@ -126,9 +127,6 @@ export default function AdminDashboard() {
                 <div className="flex-1 py-8 px-4 flex flex-col gap-2 overflow-y-auto">
                     {[
                         { id: "overview", icon: Activity, label: "System Overview" },
-                        { id: "users", icon: Users, label: "User Management" },
-                        { id: "alerts", icon: AlertTriangle, label: "Security Alerts", badge: threatCount > 0 ? threatCount.toString() : null },
-                        { id: "reports", icon: BarChart3, label: "Analytics Reports" },
                         { id: "settings", icon: Settings, label: "Platform Settings" },
                     ].map((item) => (
                         <button
@@ -143,11 +141,6 @@ export default function AdminDashboard() {
                                 <item.icon className="w-5 h-5 mr-3" />
                                 {item.label}
                             </div>
-                            {item.badge && (
-                                <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
-                                    {item.badge}
-                                </span>
-                            )}
                         </button>
                     ))}
                 </div>
@@ -210,124 +203,130 @@ export default function AdminDashboard() {
                 </header>
 
                 {/* Global Controls */}
-                <div className="flex items-center gap-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 md:px-8 py-3 shrink-0 flex-wrap">
-                    <button onClick={() => handleCommand('full_lockdown', 'all', '🚨 Full lockdown on ALL devices?')} className="flex items-center gap-2 pl-10 pr-5 py-2.5 text-xs font-bold tracking-wider transition-colors bg-red-600 dark:bg-red-500 text-white hover:bg-red-700 dark:hover:bg-red-600 clip-diagonal-top-left">
-                        <ShieldAlert className="w-4 h-4" /> FULL LOCKDOWN
-                    </button>
-                    <button onClick={() => handleCommand('kill_camera', 'all', '📷 Kill cameras on ALL devices?')} className="flex items-center gap-2 pl-10 pr-5 py-2.5 text-xs font-bold tracking-wider transition-colors bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:border-red-500 dark:hover:border-red-400 hover:text-red-600 dark:hover:text-red-400 clip-diagonal-top-left">
-                        <MonitorX className="w-4 h-4" /> KILL CAMERAS
-                    </button>
-                    <button onClick={() => handleCommand('kill_mic', 'all', '🎙 Kill mics on ALL devices?')} className="flex items-center gap-2 pl-10 pr-5 py-2.5 text-xs font-bold tracking-wider transition-colors bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:border-yellow-500 dark:hover:border-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-400 clip-diagonal-top-left">
-                        <MicOff className="w-4 h-4" /> KILL MICS
-                    </button>
-                    <button onClick={() => handleCommand('kill_network', 'all', '📡 Kill networks on ALL devices?')} className="flex items-center gap-2 pl-10 pr-5 py-2.5 text-xs font-bold tracking-wider transition-colors bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 clip-diagonal-top-left">
-                        <WifiOff className="w-4 h-4" /> KILL NETWORKS
-                    </button>
-                    <button onClick={() => handleCommand('restore_all', 'all', '↺ Restore ALL devices to normal?')} className="flex items-center gap-2 pl-10 pr-5 py-2.5 text-xs font-bold tracking-wider transition-colors bg-white dark:bg-gray-800 border border-[#0066FF] dark:border-blue-500 text-[#0066FF] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-700 clip-diagonal-top-left">
-                        <RotateCcw className="w-4 h-4" /> RESTORE ALL
-                    </button>
-                </div>
+                {activeTab === 'overview' && (
+                    <div className="flex items-center gap-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 md:px-8 py-3 shrink-0 flex-wrap">
+                        <button onClick={() => handleCommand('full_lockdown', 'all', '🚨 Full lockdown on ALL devices?')} className="flex items-center gap-2 pl-10 pr-5 py-2.5 text-xs font-bold tracking-wider transition-colors bg-red-600 dark:bg-red-500 text-white hover:bg-red-700 dark:hover:bg-red-600 clip-diagonal-top-left">
+                            <ShieldAlert className="w-4 h-4" /> FULL LOCKDOWN
+                        </button>
+                        <button onClick={() => handleCommand('kill_camera', 'all', '📷 Kill cameras on ALL devices?')} className="flex items-center gap-2 pl-10 pr-5 py-2.5 text-xs font-bold tracking-wider transition-colors bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:border-red-500 dark:hover:border-red-400 hover:text-red-600 dark:hover:text-red-400 clip-diagonal-top-left">
+                            <MonitorX className="w-4 h-4" /> KILL CAMERAS
+                        </button>
+                        <button onClick={() => handleCommand('kill_mic', 'all', '🎙 Kill mics on ALL devices?')} className="flex items-center gap-2 pl-10 pr-5 py-2.5 text-xs font-bold tracking-wider transition-colors bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:border-yellow-500 dark:hover:border-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-400 clip-diagonal-top-left">
+                            <MicOff className="w-4 h-4" /> KILL MICS
+                        </button>
+                        <button onClick={() => handleCommand('kill_network', 'all', '📡 Kill networks on ALL devices?')} className="flex items-center gap-2 pl-10 pr-5 py-2.5 text-xs font-bold tracking-wider transition-colors bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 clip-diagonal-top-left">
+                            <WifiOff className="w-4 h-4" /> KILL NETWORKS
+                        </button>
+                        <button onClick={() => handleCommand('restore_all', 'all', '↺ Restore ALL devices to normal?')} className="flex items-center gap-2 pl-10 pr-5 py-2.5 text-xs font-bold tracking-wider transition-colors bg-white dark:bg-gray-800 border border-[#0066FF] dark:border-blue-500 text-[#0066FF] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-700 clip-diagonal-top-left">
+                            <RotateCcw className="w-4 h-4" /> RESTORE ALL
+                        </button>
+                    </div>
+                )}
 
                 {/* Main Area: Grid & Logs */}
-                <div className="flex flex-1 overflow-hidden">
+                {activeTab === 'overview' ? (
+                    <div className="flex flex-1 overflow-hidden">
 
-                    {/* Device Grid */}
-                    <div className="flex-1 overflow-y-auto p-6 scrollbar-custom bg-gray-50/50 dark:bg-gray-950/50">
-                        {allDevices.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 gap-4 text-center">
-                                <Shield className="w-16 h-16 text-gray-300 dark:text-gray-700" />
-                                <p className="max-w-md text-gray-500 dark:text-gray-400">
-                                    <strong className="text-gray-700 dark:text-gray-200 block text-lg mb-2">No devices connected yet.</strong>
-                                    Click <strong>＋ Pair Device</strong> on the top right to add a monitoring agent.
-                                </p>
+                        {/* Device Grid */}
+                        <div className="flex-1 overflow-y-auto p-6 scrollbar-custom bg-gray-50/50 dark:bg-gray-950/50">
+                            {allDevices.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 gap-4 text-center">
+                                    <Shield className="w-16 h-16 text-gray-300 dark:text-gray-700" />
+                                    <p className="max-w-md text-gray-500 dark:text-gray-400">
+                                        <strong className="text-gray-700 dark:text-gray-200 block text-lg mb-2">No devices connected yet.</strong>
+                                        Click <strong>＋ Pair Device</strong> on the top right to add a monitoring agent.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-6">
+                                    {allDevices.map(d => (
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            key={d.device_id}
+                                            className={`bg-white dark:bg-gray-900 border p-5 flex flex-col gap-4 relative transition-all duration-300 clip-diagonal-top-left ${d.status !== 'online' ? 'opacity-50' : ''} ${d.threat_score >= 80 && d.status === 'online' ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)] dark:border-red-500 dark:shadow-[0_0_15px_rgba(239,68,68,0.15)]' : 'border-gray-200 dark:border-gray-800 shadow-sm dark:shadow-none'}`}
+                                        >
+                                            {d.camera_active && (
+                                                <div className="bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-red-400 px-3 py-1.5 text-xs font-bold flex items-center gap-2 border border-red-100 dark:border-red-800">
+                                                    ⚠ CAMERA IN USE: {d.active_camera_apps.join(', ') || 'unknown'}
+                                                </div>
+                                            )}
+
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <div className="font-bold text-lg text-gray-900 dark:text-gray-100">{d.hostname}</div>
+                                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">{d.ip}</div>
+                                                </div>
+                                                <div className={`flex items-center gap-2 px-3 py-1 text-[10px] uppercase tracking-wider font-bold border ${d.status === 'online' ? 'bg-blue-50 dark:bg-blue-900/30 text-[#0066FF] dark:text-blue-400 border-blue-100 dark:border-blue-800' :
+                                                    d.status === 'timeout' ? 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border-yellow-100 dark:border-yellow-800' : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800'
+                                                    }`}>
+                                                    <span className={`w-2 h-2 rounded-full ${d.status === 'online' ? 'bg-[#0066FF] dark:bg-blue-400 animate-pulse' : d.status === 'timeout' ? 'bg-yellow-500' : 'bg-red-500'}`}></span>
+                                                    {d.status}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5 mt-2">
+                                                <div className="flex justify-between items-end text-xs text-gray-500 dark:text-gray-400 font-semibold tracking-wider">
+                                                    <span>THREAT SCORE</span>
+                                                    <span className="text-xl font-bold font-sans" style={{ color: scoreColor(d.threat_score) }}>{Math.round(d.threat_score)}</span>
+                                                </div>
+                                                <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                                                    <div className="h-full transition-all duration-500" style={{ width: `${d.threat_score}%`, backgroundColor: scoreColor(d.threat_score) }}></div>
+                                                </div>
+                                            </div>
+
+                                            <Sparkline history={d.threat_history} color={scoreColor(d.threat_score)} />
+
+                                            <div className="grid grid-cols-3 gap-2 mt-1">
+                                                <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 p-2 text-center clip-diagonal-top-left">
+                                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">CPU</div>
+                                                    <div className="text-sm font-bold mt-1 text-gray-900 dark:text-gray-200">{Math.round(d.cpu_percent)}%</div>
+                                                </div>
+                                                <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 p-2 text-center clip-diagonal-top-left">
+                                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">RAM</div>
+                                                    <div className="text-sm font-bold mt-1 text-gray-900 dark:text-gray-200">{Math.round(d.ram_percent)}%</div>
+                                                </div>
+                                                <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 p-2 text-center clip-diagonal-top-left">
+                                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">DISK</div>
+                                                    <div className="text-sm font-bold mt-1 text-gray-900 dark:text-gray-200">{Math.round(d.disk_percent)}%</div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-2 flex-wrap mt-2 pt-4 border-t border-gray-100 dark:border-gray-800">
+                                                <button onClick={() => handleCommand('kill_camera', d.device_id, `📷 Kill camera on ${d.device_id}?`)} className="flex-1 px-3 py-2.5 text-[11px] uppercase tracking-wider font-bold bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-500 dark:hover:border-red-400 hover:text-red-600 dark:hover:text-red-400 transition-colors clip-diagonal-sm flex items-center justify-center whitespace-nowrap">📷 CAM</button>
+                                                <button onClick={() => handleCommand('kill_mic', d.device_id, `🎙 Kill mic on ${d.device_id}?`)} className="flex-1 px-3 py-2.5 text-[11px] uppercase tracking-wider font-bold bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-yellow-500 dark:hover:border-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors clip-diagonal-sm flex items-center justify-center whitespace-nowrap">🎙 MIC</button>
+                                                <button onClick={() => handleCommand('kill_network', d.device_id, `📡 Kill network on ${d.device_id}?`)} className="flex-1 px-3 py-2.5 text-[11px] uppercase tracking-wider font-bold bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors clip-diagonal-sm flex items-center justify-center whitespace-nowrap">📡 NET</button>
+                                                <button onClick={() => handleCommand('full_lockdown', d.device_id, `🔒 Full lockdown on ${d.device_id}?`)} className="w-full mt-1 px-4 py-3 text-xs uppercase tracking-widest font-bold bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-600 dark:hover:bg-red-600 hover:text-white dark:hover:text-white transition-colors clip-diagonal-sm flex items-center justify-center">LOCKDOWN</button>
+                                            </div>
+
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Incident Log Panel */}
+                        <div className="hidden lg:flex flex-col w-80 shrink-0 border-l border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+                            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+                                <span className="text-xs font-bold tracking-widest text-gray-500 dark:text-gray-400 uppercase">Incident Log</span>
+                                <button onClick={() => setLogs([])} className="text-[10px] font-bold text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 px-2 py-1 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-400 dark:hover:border-gray-500 transition-colors">CLEAR</button>
                             </div>
-                        ) : (
-                            <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-6">
-                                {allDevices.map(d => (
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0.95 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        key={d.device_id}
-                                        className={`bg-white dark:bg-gray-900 border p-5 flex flex-col gap-4 relative transition-all duration-300 clip-diagonal-top-left ${d.status !== 'online' ? 'opacity-50' : ''} ${d.threat_score >= 80 && d.status === 'online' ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)] dark:border-red-500 dark:shadow-[0_0_15px_rgba(239,68,68,0.15)]' : 'border-gray-200 dark:border-gray-800 shadow-sm dark:shadow-none'}`}
-                                    >
-                                        {d.camera_active && (
-                                            <div className="bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-red-400 px-3 py-1.5 text-xs font-bold flex items-center gap-2 border border-red-100 dark:border-red-800">
-                                                ⚠ CAMERA IN USE: {d.active_camera_apps.join(', ') || 'unknown'}
-                                            </div>
-                                        )}
-
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <div className="font-bold text-lg text-gray-900 dark:text-gray-100">{d.hostname}</div>
-                                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">{d.ip}</div>
-                                            </div>
-                                            <div className={`flex items-center gap-2 px-3 py-1 text-[10px] uppercase tracking-wider font-bold border ${d.status === 'online' ? 'bg-blue-50 dark:bg-blue-900/30 text-[#0066FF] dark:text-blue-400 border-blue-100 dark:border-blue-800' :
-                                                d.status === 'timeout' ? 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border-yellow-100 dark:border-yellow-800' : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800'
-                                                }`}>
-                                                <span className={`w-2 h-2 rounded-full ${d.status === 'online' ? 'bg-[#0066FF] dark:bg-blue-400 animate-pulse' : d.status === 'timeout' ? 'bg-yellow-500' : 'bg-red-500'}`}></span>
-                                                {d.status}
-                                            </div>
+                            <div className="flex-1 overflow-y-auto p-2 scrollbar-custom space-y-2 bg-gray-50/30 dark:bg-transparent">
+                                {logs.map(log => (
+                                    <div key={log.id} className={`p-3 text-xs border-l-4 bg-white dark:bg-gray-800 shadow-sm dark:shadow-none font-medium ${getLogColorClass(log.event)}`}>
+                                        <div className="flex justify-between items-start mb-1.5">
+                                            {log.device_id ? <span className="text-[#0066FF] dark:text-blue-400 font-bold">{log.device_id}</span> : <span className="text-gray-400 dark:text-gray-500">System</span>}
+                                            <span className="text-gray-400 dark:text-gray-500 text-[10px] font-mono">{new Date(log.timestamp).toLocaleTimeString('en-GB')}</span>
                                         </div>
-
-                                        <div className="flex flex-col gap-1.5 mt-2">
-                                            <div className="flex justify-between items-end text-xs text-gray-500 dark:text-gray-400 font-semibold tracking-wider">
-                                                <span>THREAT SCORE</span>
-                                                <span className="text-xl font-bold font-sans" style={{ color: scoreColor(d.threat_score) }}>{Math.round(d.threat_score)}</span>
-                                            </div>
-                                            <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                                                <div className="h-full transition-all duration-500" style={{ width: `${d.threat_score}%`, backgroundColor: scoreColor(d.threat_score) }}></div>
-                                            </div>
-                                        </div>
-
-                                        <Sparkline history={d.threat_history} color={scoreColor(d.threat_score)} />
-
-                                        <div className="grid grid-cols-3 gap-2 mt-1">
-                                            <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 p-2 text-center clip-diagonal-top-left">
-                                                <div className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">CPU</div>
-                                                <div className="text-sm font-bold mt-1 text-gray-900 dark:text-gray-200">{Math.round(d.cpu_percent)}%</div>
-                                            </div>
-                                            <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 p-2 text-center clip-diagonal-top-left">
-                                                <div className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">RAM</div>
-                                                <div className="text-sm font-bold mt-1 text-gray-900 dark:text-gray-200">{Math.round(d.ram_percent)}%</div>
-                                            </div>
-                                            <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 p-2 text-center clip-diagonal-top-left">
-                                                <div className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">DISK</div>
-                                                <div className="text-sm font-bold mt-1 text-gray-900 dark:text-gray-200">{Math.round(d.disk_percent)}%</div>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex gap-2 flex-wrap mt-2 pt-4 border-t border-gray-100 dark:border-gray-800">
-                                            <button onClick={() => handleCommand('kill_camera', d.device_id, `📷 Kill camera on ${d.device_id}?`)} className="flex-1 px-3 py-2.5 text-[11px] uppercase tracking-wider font-bold bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-500 dark:hover:border-red-400 hover:text-red-600 dark:hover:text-red-400 transition-colors clip-diagonal-sm flex items-center justify-center whitespace-nowrap">📷 CAM</button>
-                                            <button onClick={() => handleCommand('kill_mic', d.device_id, `🎙 Kill mic on ${d.device_id}?`)} className="flex-1 px-3 py-2.5 text-[11px] uppercase tracking-wider font-bold bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-yellow-500 dark:hover:border-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors clip-diagonal-sm flex items-center justify-center whitespace-nowrap">🎙 MIC</button>
-                                            <button onClick={() => handleCommand('kill_network', d.device_id, `📡 Kill network on ${d.device_id}?`)} className="flex-1 px-3 py-2.5 text-[11px] uppercase tracking-wider font-bold bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors clip-diagonal-sm flex items-center justify-center whitespace-nowrap">📡 NET</button>
-                                            <button onClick={() => handleCommand('full_lockdown', d.device_id, `🔒 Full lockdown on ${d.device_id}?`)} className="w-full mt-1 px-4 py-3 text-xs uppercase tracking-widest font-bold bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-600 dark:hover:bg-red-600 hover:text-white dark:hover:text-white transition-colors clip-diagonal-sm flex items-center justify-center">LOCKDOWN</button>
-                                        </div>
-
-                                    </motion.div>
+                                        <span className="text-gray-700 dark:text-gray-300 leading-snug block">{log.event}</span>
+                                    </div>
                                 ))}
                             </div>
-                        )}
-                    </div>
-
-                    {/* Incident Log Panel */}
-                    <div className="hidden lg:flex flex-col w-80 shrink-0 border-l border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
-                        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
-                            <span className="text-xs font-bold tracking-widest text-gray-500 dark:text-gray-400 uppercase">Incident Log</span>
-                            <button onClick={() => setLogs([])} className="text-[10px] font-bold text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 px-2 py-1 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-400 dark:hover:border-gray-500 transition-colors">CLEAR</button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-2 scrollbar-custom space-y-2 bg-gray-50/30 dark:bg-transparent">
-                            {logs.map(log => (
-                                <div key={log.id} className={`p-3 text-xs border-l-4 bg-white dark:bg-gray-800 shadow-sm dark:shadow-none font-medium ${getLogColorClass(log.event)}`}>
-                                    <div className="flex justify-between items-start mb-1.5">
-                                        {log.device_id ? <span className="text-[#0066FF] dark:text-blue-400 font-bold">{log.device_id}</span> : <span className="text-gray-400 dark:text-gray-500">System</span>}
-                                        <span className="text-gray-400 dark:text-gray-500 text-[10px] font-mono">{new Date(log.timestamp).toLocaleTimeString('en-GB')}</span>
-                                    </div>
-                                    <span className="text-gray-700 dark:text-gray-300 leading-snug block">{log.event}</span>
-                                </div>
-                            ))}
                         </div>
                     </div>
-                </div>
+                ) : activeTab === 'settings' ? (
+                    <SettingsView theme={theme} />
+                ) : null}
             </main>
 
             {/* Pair Modal */}
