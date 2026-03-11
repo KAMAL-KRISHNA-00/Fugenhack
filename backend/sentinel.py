@@ -1,80 +1,108 @@
 import winreg
-import psutil
 import time
+import subprocess
 
 class RegistrySentinel:
-    def __init__(self):
-        self.reg_path = r"Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam"
-        self.hkey = winreg.HKEY_CURRENT_USER
-        
-        # --- FLAG/WHITELIST SECTION ---
-        # Add the names of apps you want the Sentinel to IGNORE
-        self.whitelisted_apps = [
-            "Microsoft.WindowsCamera", # Official Windows Camera App
-            "chrome",                   # Google Chrome
-            "ms-teams",                 # Microsoft Teams
-            "Zoom",                     # Zoom Meetings
-            "brave"                     # Brave Browser
-        ]
+    def __init__(self, debug=False):
+        self.sensor_paths = {
+            "webcam": r"Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam",
+            "microphone": r"Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone"
+        }
+        self.debug = debug
 
-    def is_app_active(self, key):
+    def _log(self, message):
+        if self.debug:
+            print(f"[sentinel] {message}")
+
+    def verify_signature(self, file_path):
+    # --- TESTING LOGIC: FLAG INTERPRETERS ---
+        if "python.exe" in file_path.lower():
+            return False # Treat Python scripts as untrusted
+    # ----------------------------------------
+
         try:
-            start_time, _ = winreg.QueryValueEx(key, "LastUsedTimeStart")
-            stop_time, _ = winreg.QueryValueEx(key, "LastUsedTimeStop")
-            return start_time > stop_time
+            clean_path = file_path.replace('#', '\\')
+            cmd = f"(Get-AuthenticodeSignature '{clean_path}').Status"
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", cmd],
+                capture_output=True,
+                text=True,
+                timeout=4,
+            )
+            status = result.stdout.strip()
+            if result.returncode != 0:
+                self._log(f"Signature check failed for {clean_path}: {result.stderr.strip()}")
+                return False
+            if self.debug:
+                self._log(f"Signature {clean_path}: {status}")
+            result = status
+            return result == "Valid"
+        except Exception:
+            return False
+
+    def is_active(self, key):
+        """Detects activity if Start > Stop or if Stop is 0 (currently streaming)."""
+        try:
+            start, _ = winreg.QueryValueEx(key, "LastUsedTimeStart")
+            stop, _ = winreg.QueryValueEx(key, "LastUsedTimeStop")
+            return start > stop or stop == 0
         except FileNotFoundError:
             return False
 
-    def get_active_pids(self):
-        active_apps = []
+    def get_app_diagnostics(self, sensor):
+        results = []
         try:
-            root_key = winreg.OpenKey(self.hkey, self.reg_path)
-            
-            # 1. CHECK STORE APPS (Packaged)
-            try:
-                num_subkeys, _, _ = winreg.QueryInfoKey(root_key)
-                for i in range(num_subkeys):
-                    name = winreg.EnumKey(root_key, i)
-                    if name == "NonPackaged": continue
+            root_path = self.sensor_paths[sensor]
+            self._log(f"Scanning {sensor} registry path")
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, root_path) as root_key:
+                # 1. Scan root for Packaged Apps (Windows Camera, etc.)
+                num_keys, _, _ = winreg.QueryInfoKey(root_key)
+                for i in range(num_keys):
+                    app_id = winreg.EnumKey(root_key, i)
+                    if app_id == "NonPackaged": continue
                     
-                    # FLAG CHECK: Is this app in our whitelist?
-                    if any(white in name for white in self.whitelisted_apps):
-                        continue
+                    with winreg.OpenKey(root_key, app_id) as app_key:
+                        if self.is_active(app_key):
+                            # Store apps are generally trusted by Windows, but we mark them
+                            results.append({"name": app_id, "trusted": True, "type": "Packaged", "sensor": sensor})
 
-                    with winreg.OpenKey(root_key, name) as app_key:
-                        if self.is_app_active(app_key):
-                            active_apps.append(name.split('_')[0]) 
-            except OSError: pass
-
-            # 2. CHECK DESKTOP APPS (NonPackaged)
-            try:
-                with winreg.OpenKey(root_key, "NonPackaged") as np_key:
-                    num_np_keys, _, _ = winreg.QueryInfoKey(np_key)
-                    for i in range(num_np_keys):
-                        name = winreg.EnumKey(np_key, i)
-                        
-                        # FLAG CHECK: Is this app in our whitelist?
-                        if any(white.lower() in name.lower() for white in self.whitelisted_apps):
-                            continue
-
-                        with winreg.OpenKey(np_key, name) as app_key:
-                            if self.is_app_active(app_key):
-                                active_apps.append(name.split('#')[-1])
-            except FileNotFoundError: pass
-
+                # 2. Scan NonPackaged for Desktop Apps (.exe)
+                try:
+                    with winreg.OpenKey(root_key, "NonPackaged") as np_key:
+                        num_np, _, _ = winreg.QueryInfoKey(np_key)
+                        for i in range(num_np):
+                            app_path = winreg.EnumKey(np_key, i)
+                            with winreg.OpenKey(np_key, app_path) as app_key:
+                                if self.is_active(app_key):
+                                    is_signed = self.verify_signature(app_path)
+                                    results.append({
+                                        "name": app_path.split('#')[-1], 
+                                        "trusted": is_signed, 
+                                        "type": "Desktop",
+                                        "sensor": sensor,
+                                    })
+                except FileNotFoundError: pass
         except Exception as e:
-            print(f"Registry Error: {e}")
-        
-        return list(set(active_apps))
+            self._log(f"Failed scanning {sensor}: {e}")
+
+        if self.debug:
+            if results:
+                self._log(f"{sensor} active entries: {len(results)}")
+            else:
+                self._log(f"{sensor} active entries: 0")
+        return results
 
     def run(self):
-        print(f"--- [Heuristi-Cam] Sentinel Active ---")
-        print(f"Ignoring: {', '.join(self.whitelisted_apps)}")
+        print("--- [Huristi] Live Hardware Monitor ---")
+        print("Format: [STATUS] SENSOR -> APP_NAME (TYPE)\n")
+        
         while True:
-            active = self.get_active_pids()
-            if active:
-                # This only prints if the app is NOT in the whitelist
-                print(f"[!!!] UNKNOWN CAMERA ACCESS: {', '.join(active)}")
+            for sensor in ["webcam", "microphone"]:
+                active_apps = self.get_app_diagnostics(sensor)
+                for app in active_apps:
+                    status = "[TRUSTED]" if app['trusted'] else "[UNTRUSTED/THREAT]"
+                    print(f"{status} {sensor.upper()} -> {app['name']} ({app['type']})")
+            
             time.sleep(1)
 
 if __name__ == "__main__":
