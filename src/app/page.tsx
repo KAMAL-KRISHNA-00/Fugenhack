@@ -1,7 +1,8 @@
 "use client"
 
 import Image from "next/image"
-import { motion } from "framer-motion"
+import { useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { ArrowUpRight, Shield, Globe, Lock, Code, Database, Server, Star, Plus, Camera, Activity } from "lucide-react"
 import Link from "next/link"
 
@@ -11,18 +12,20 @@ const fadeInUp = {
 }
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<'mission' | 'vision'>('mission');
+
   return (
     <div className="min-h-screen bg-white text-gray-900 overflow-hidden font-sans">
       {/* Navigation */}
       <header className="fixed top-0 w-full bg-white/80 backdrop-blur-md z-50 border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Shield className="w-8 h-8 text-[#0066FF]" />
+            <img src="/images/logo.png" alt="Huristi Logo" className="w-8 h-8" />
             <span className="font-bold text-xl tracking-tight">Huristi</span>
           </div>
           <nav className="hidden md:flex gap-8 font-medium text-sm text-gray-700">
-            <Link href="#" className="text-[#0066FF]">Home</Link>
-            <Link href="#" className="hover:text-[#0066FF] transition-colors">About Us</Link>
+            <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-[#0066FF] cursor-pointer">Home</button>
+            <button onClick={() => { document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' }) }} className="hover:text-[#0066FF] transition-colors cursor-pointer">About Us</button>
 
           </nav>
           <Link href="/login" className="hidden md:flex items-center gap-2 bg-[#0066FF] text-white px-6 py-2.5 rounded-none clip-diagonal font-medium hover:bg-blue-700 transition-colors">
@@ -63,12 +66,12 @@ export default function Home() {
           </motion.p>
 
           <motion.div initial="hidden" animate="visible" variants={fadeInUp} className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <button className="flex items-center group">
-              <span className="bg-gray-900 text-white px-8 py-4 font-semibold text-lg hover:bg-gray-800 transition-colors">Download</span>
+            <Link href="/signup" className="flex items-center group cursor-pointer inline-flex">
+              <span className="bg-gray-900 text-white px-8 py-4 font-semibold text-lg hover:bg-gray-800 transition-colors">Get Started</span>
               <span className="bg-[#0066FF] text-white p-4 clip-diagonal-both group-hover:bg-blue-700 transition-colors">
                 <ArrowUpRight className="w-6 h-6" />
               </span>
-            </button>
+            </Link>
           </motion.div>
         </div>
       </section>
@@ -88,40 +91,70 @@ export default function Home() {
       </section>
 
       {/* About Section */}
-      <section className="py-32 px-6">
+      <section id="about" className="py-32 px-6">
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp}>
             <span className="text-[#0066FF] font-bold tracking-wider text-sm uppercase mb-4 block">.About Our Company</span>
             <h2 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">We provide the best security solutions</h2>
 
             <div className="flex gap-8 mb-8 border-b border-gray-200">
-              <button className="text-gray-900 border-b-2 border-[#0066FF] pb-4 font-semibold">Mission</button>
-              <button className="text-gray-500 pb-4 font-semibold hover:text-gray-900">Vision</button>
+              <button
+                onClick={() => setActiveTab('mission')}
+                className={`pb-4 font-semibold transition-colors relative ${activeTab === 'mission' ? 'text-gray-900 border-b-2 border-[#0066FF]' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                Mission
+              </button>
+              <button
+                onClick={() => setActiveTab('vision')}
+                className={`pb-4 font-semibold transition-colors relative ${activeTab === 'vision' ? 'text-gray-900 border-b-2 border-[#0066FF]' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                Vision
+              </button>
             </div>
 
-            <p className="text-gray-600 mb-10 leading-relaxed text-lg">
-              Our mission is to safeguard personal privacy by detecting unauthorized webcam activity and preventing potential surveillance threats. Huristi combines intelligent process analysis with automated hardware containment to protect users from hidden digital intrusions.
-            </p>
+            <div className="relative min-h-[120px] mb-6 overflow-hidden">
+              <AnimatePresence mode="wait">
+                {activeTab === 'mission' ? (
+                  <motion.p
+                    key="mission"
+                    initial={{ x: -20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: 20, opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-gray-600 leading-relaxed text-lg absolute top-0 left-0"
+                  >
+                    Our mission is to safeguard personal privacy by detecting unauthorized webcam activity and preventing potential surveillance threats. Huristi combines intelligent process analysis with automated hardware containment to protect users from hidden digital intrusions.
+                  </motion.p>
+                ) : (
+                  <motion.p
+                    key="vision"
+                    initial={{ x: 20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: -20, opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-gray-600 leading-relaxed text-lg absolute top-0 left-0"
+                  >
+                    Our vision is a world where every individual can navigate the digital space with absolute confidence in their privacy and security, knowing their devices are proactively protected by intelligent and automated defense systems.
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
 
-            <button className="bg-gray-900 text-white px-8 py-4 font-medium hover:bg-[#0066FF] clip-diagonal transition-colors">
-              About Us
-            </button>
+            <Link href="/about" className="bg-gray-900 text-white px-8 py-4 font-medium hover:bg-[#0066FF] clip-diagonal transition-colors inline-block mt-8">
+              Learn More
+            </Link>
           </motion.div>
 
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="relative">
             <div className="relative w-full aspect-square md:aspect-[4/3] bg-gray-200 clip-diagonal-top-left overflow-hidden">
               <Image src="/images/about_company_image_1773148174495.png" alt="About us" fill className="object-cover" />
             </div>
-            <div className="absolute -bottom-10 -left-10 bg-[#0066FF] text-white p-8 clip-diagonal shadow-2xl">
-              <p className="text-4xl font-bold mb-2">1200+</p>
-              <p className="text-sm font-medium opacity-90">Successful projects</p>
-            </div>
           </motion.div>
         </div>
       </section>
 
       {/* Services Section */}
-      <section className="py-32 px-6 bg-gray-50 relative overflow-hidden flex items-center justify-center">
+      <section id="expertise" className="py-32 px-6 bg-gray-50 relative overflow-hidden flex items-center justify-center">
         {/* Massive scrolling text background */}
         <div className="absolute top-1/2 left-0 -translate-y-1/2 text-[12vw] font-bold text-gray-900/[0.03] whitespace-nowrap pointer-events-none w-full text-center">
           CYBER SECURITY
@@ -145,9 +178,6 @@ export default function Home() {
                 </div>
                 <h3 className="text-2xl font-bold mb-4">{service.title}</h3>
                 <p className="text-gray-600 mb-8">{service.desc}</p>
-                <button className="flex items-center text-sm font-bold text-[#0066FF] gap-2 group-hover:gap-4 transition-all uppercase">
-                  READ MORE <ArrowUpRight className="w-4 h-4" />
-                </button>
               </motion.div>
             ))}
           </div>
@@ -209,40 +239,28 @@ export default function Home() {
 
 
       {/* Footer */}
-      <footer className="bg-[#0A0A0A] text-white pt-24 pb-12 px-6 border-t-[8px] border-[#0066FF]">
+      <footer id="contact-cta" className="bg-[#0A0A0A] text-white pt-24 pb-12 px-6 border-t-[8px] border-[#0066FF]">
         <div className="max-w-7xl mx-auto text-center mb-24">
           <h2 className="text-5xl md:text-7xl font-bold mb-8 uppercase tracking-tighter">Ready To Discuss?</h2>
-          <button className="bg-[#0066FF] text-white px-12 py-5 text-xl font-bold hover:bg-white hover:text-black transition-colors clip-diagonal">
+          <Link href="/contact" className="inline-block bg-[#0066FF] text-white px-12 py-5 text-xl font-bold hover:bg-white hover:text-black transition-colors clip-diagonal">
             LET&apos;S TALK
-          </button>
+          </Link>
         </div>
 
-        <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-12 font-medium text-gray-400 mb-16">
+        <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-8 md:gap-12 font-medium text-gray-400 mb-16 items-start">
           <div>
             <div className="flex items-center gap-2 mb-8 text-white">
-              <Shield className="w-8 h-8 text-[#0066FF]" />
-              <span className="font-bold text-2xl tracking-tight">Cybery</span>
+              <img src="/images/logo.png" alt="Huristi Logo" className="w-8 h-8" />
+              <span className="font-bold text-2xl tracking-tight">Huristi</span>
             </div>
             <p className="leading-relaxed mb-6 font-normal">Securing the digital world one network at a time. Your trusted partner in global cyber defense operations.</p>
           </div>
 
           <div>
-            <h4 className="text-white font-bold text-lg mb-6 uppercase tracking-wider">Services</h4>
-            <ul className="space-y-4">
-              <li><Link href="#" className="hover:text-white transition-colors">Network Security</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Cloud Protection</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Risk Assessment</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Incident Response</Link></li>
-            </ul>
-          </div>
-
-          <div>
             <h4 className="text-white font-bold text-lg mb-6 uppercase tracking-wider">Company</h4>
             <ul className="space-y-4">
-              <li><Link href="#" className="hover:text-white transition-colors">About Us</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Careers</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">News & Blog</Link></li>
-              <li><Link href="#" className="hover:text-white transition-colors">Contact</Link></li>
+              <li><button onClick={() => { document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' }) }} className="hover:text-white transition-colors cursor-pointer text-left">About Us</button></li>
+              <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
             </ul>
           </div>
 
@@ -251,16 +269,16 @@ export default function Home() {
             <p className="mb-4 text-sm font-normal">Get the latest security updates and news.</p>
             <div className="flex">
               <input type="email" placeholder="Email Address" className="bg-gray-900 border border-gray-800 p-3 w-full focus:outline-none focus:border-[#0066FF] text-white font-normal" />
-              <button className="bg-[#0066FF] px-4 hover:bg-blue-700 transition-colors"><ArrowUpRight className="w-5 h-5 text-white" /></button>
+              <button onClick={() => alert("Subscribed! (Demo feature)")} className="bg-[#0066FF] px-4 hover:bg-blue-700 transition-colors"><ArrowUpRight className="w-5 h-5 text-white" /></button>
             </div>
           </div>
         </div>
 
         <div className="max-w-7xl mx-auto pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center text-sm font-normal text-gray-500 gap-4">
-          <p>&copy; {new Date().getFullYear()} Cybery Clone. All Rights Reserved.</p>
+          <p>&copy; {new Date().getFullYear()} HURISTI. All Rights Reserved.</p>
           <div className="flex gap-6">
-            <Link href="#" className="hover:text-white transition-colors">Terms & Conditions</Link>
-            <Link href="#" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-white transition-colors">Terms & Conditions</Link>
+            <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
           </div>
         </div>
       </footer>

@@ -39,3 +39,28 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# Additional Framework Caches
+.eslintcache
+.stylelintcache
+.turbo/
+dist/
+coverage/
+
+# IDE files
+.vscode/
+.idea/
+
+# Python caching and environments
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env/
+.venv/
+

@@ -1,5 +1,7 @@
 "use client"
 
+import Image from "next/image";
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
@@ -67,7 +69,7 @@ export default function LoginPage() {
                     className="flex justify-center flex-col items-center"
                 >
                     <div className="w-16 h-16 bg-[#0066FF] clip-diagonal flex items-center justify-center mb-6">
-                        <Shield className="w-8 h-8 text-white" />
+                        <Image src="/images/logo.png" alt="Huristi Logo" width={32} height={32} className="w-8 h-8" style={{ filter: 'brightness(0) invert(1)' }} />
                     </div>
                     <h2 className="text-center text-3xl font-extrabold text-gray-900 tracking-tight">
                         Sign in to your account
