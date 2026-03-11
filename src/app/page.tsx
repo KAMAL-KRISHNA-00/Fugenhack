@@ -72,6 +72,9 @@ export default function Home() {
                 <ArrowUpRight className="w-6 h-6" />
               </span>
             </Link>
+            <a href="https://github.com/KAMAL-KRISHNA-00/Fugenhack/releases/download/v1.0/HuristiAgent.zip" className="flex items-center group cursor-pointer inline-flex border border-gray-200 hover:border-gray-300 transition-colors">
+              <span className="bg-white text-gray-900 px-8 py-4 font-semibold text-lg hover:bg-gray-50 transition-colors">Download App</span>
+            </a>
           </motion.div>
         </div>
       </section>
