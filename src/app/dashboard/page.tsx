@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { motion } from "framer-motion"
 import { Shield, ShieldAlert, MonitorX, MicOff, WifiOff, RotateCcw, AlertTriangle, Users, Activity, Settings, LogOut, ChevronRight, BarChart3, Bell } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { Sparkline } from '@/components/Sparkline'
 import { SlaveDevice, LogEntry, CommandType } from '@/types'
 import SettingsView from './SettingsView'
@@ -54,6 +56,7 @@ const MOCK_LOGS: LogEntry[] = [
 ];
 
 export default function AdminDashboard() {
+    const router = useRouter()
     const [activeTab, setActiveTab] = useState("overview")
     const [theme, setTheme] = useState<'light' | 'dark'>('dark')
 
@@ -68,6 +71,19 @@ export default function AdminDashboard() {
         open: false, type: null, target: '', message: ''
     });
     const [autoKillAlert, setAutoKillAlert] = useState<string | null>("LAPTOP-ALPHA");
+
+    // Auth guard — redirect if no session
+    useEffect(() => {
+        const session = localStorage.getItem("huristi_session")
+        if (!session) {
+            router.replace("/login")
+        }
+    }, [router])
+
+    const handleSignOut = useCallback(() => {
+        localStorage.removeItem("huristi_session")
+        router.push("/login")
+    }, [router])
 
     useEffect(() => {
         if (autoKillAlert) {
@@ -118,41 +134,82 @@ export default function AdminDashboard() {
             </div>
 
             {/* Sidebar */}
-            <aside className="w-64 bg-gray-900 border-r border-transparent dark:border-gray-800 text-white min-h-screen shrink-0 z-40 hidden md:flex flex-col">
-                <div className="h-20 flex items-center px-6 border-b border-gray-800 shrink-0">
-                    <Shield className="w-8 h-8 text-[#0066FF] mr-3" />
-                    <span className="font-bold text-xl tracking-tight uppercase">Admin Panel</span>
+            <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white min-h-screen shrink-0 z-40 hidden md:flex flex-col transition-colors duration-200">
+                <div className="h-20 flex items-center px-6 border-b border-gray-200 dark:border-gray-800 shrink-0">
+                    <div className="w-12 h-12 mr-3 rounded-xl overflow-hidden bg-white shadow-sm border border-gray-100 flex items-center justify-center">
+                        <Image src="/images/logo.png" alt="Huristi Logo" width={48} height={48} className="object-cover w-full h-full" />
+                    </div>
+                    <span className="font-bold text-xl tracking-tight uppercase text-[#0066FF]">Admin Hub</span>
                 </div>
+                <div className="flex-1 py-6 px-4 flex flex-col gap-4 overflow-y-auto scrollbar-custom">
+                    {/* Cyber Tips Section */}
+                    <div className="mb-1">
+                        <p className="text-[9px] font-bold tracking-[0.2em] uppercase text-gray-500 dark:text-gray-600 px-1">Security Tips</p>
+                    </div>
 
-                <div className="flex-1 py-8 px-4 flex flex-col gap-2 overflow-y-auto">
                     {[
-                        { id: "overview", icon: Activity, label: "System Overview" },
-                        { id: "settings", icon: Settings, label: "Platform Settings" },
-                    ].map((item) => (
-                        <button
-                            key={item.id}
-                            onClick={() => setActiveTab(item.id)}
-                            className={`flex items-center justify-between w-full px-4 py-3 text-sm font-medium transition-colors clip-diagonal-top-left ${activeTab === item.id
-                                ? "bg-[#0066FF] text-white"
-                                : "text-gray-400 hover:bg-gray-800 hover:text-white"
-                                }`}
+                        {
+                            icon: "🔐",
+                            title: "Zero Trust Architecture",
+                            tip: "Never trust, always verify. Grant least-privilege access and re-authenticate continuously.",
+                        },
+                        {
+                            icon: "📡",
+                            title: "Network Segmentation",
+                            tip: "Isolate critical systems in separate VLANs to limit lateral movement during breaches.",
+                        },
+                        {
+                            icon: "🧬",
+                            title: "Threat Intelligence",
+                            tip: "Correlate IOCs across devices. A single abnormal process can indicate APT activity.",
+                        },
+                        {
+                            icon: "🛡️",
+                            title: "Endpoint Hardening",
+                            tip: "Disable unused ports, enforce application whitelisting, and audit privileged accounts regularly.",
+                        },
+                        {
+                            icon: "⚡",
+                            title: "Incident Response",
+                            tip: "Contain first, investigate second. Preserve logs before isolating a compromised host.",
+                        },
+                        {
+                            icon: "👁️",
+                            title: "Behavioral Analytics",
+                            tip: "Baseline normal user activity. Deviations in login times or data access often signal insider threats.",
+                        },
+                    ].map((item, i) => (
+                        <div
+                            key={i}
+                            className="bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/50 rounded-sm p-3 flex flex-col gap-1.5"
                         >
-                            <div className="flex items-center">
-                                <item.icon className="w-5 h-5 mr-3" />
-                                {item.label}
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm leading-none">{item.icon}</span>
+                                <span className="text-[10px] font-bold tracking-wider uppercase text-[#0066FF] dark:text-blue-400 leading-none">{item.title}</span>
                             </div>
-                        </button>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed pl-0.5">
+                                {item.tip}
+                            </p>
+                        </div>
                     ))}
+
+                    <div className="mt-2 border-t border-gray-100 dark:border-gray-800 pt-4">
+                        <p className="text-[9px] font-bold tracking-[0.2em] uppercase text-gray-400 dark:text-gray-600 mb-2 px-1">Did You Know?</p>
+                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 rounded-sm p-3">
+                            <p className="text-[10px] text-blue-700 dark:text-blue-400 leading-relaxed">
+                                <span className="font-bold">68%</span> of breaches involve a human element — phishing, credential theft, or insider misuse. Train your users as your first line of defense.
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="p-4 border-t border-gray-800 shrink-0">
-                    <Link href="/login" className="flex items-center px-4 py-3 text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors clip-diagonal-top-left">
+                    <button onClick={handleSignOut} className="flex items-center w-full px-4 py-3 text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors clip-diagonal-top-left">
                         <LogOut className="w-5 h-5 mr-3" />
                         Sign Out
-                    </Link>
+                    </button>
                 </div>
             </aside>
-
             {/* Main Content */}
             <main className="flex-1 flex flex-col overflow-hidden min-w-0 bg-gray-50 dark:bg-gray-950">
                 {/* Header components */}

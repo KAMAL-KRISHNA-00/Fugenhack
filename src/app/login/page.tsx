@@ -3,30 +3,72 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { Shield, Lock, User, ArrowRight, AlertCircle } from "lucide-react"
+import { Shield, Lock, Mail, ArrowRight, AlertCircle } from "lucide-react"
 import Link from "next/link"
+import { supabase } from "@/utils/supabase/client"
 
 export default function LoginPage() {
     const router = useRouter()
-    const [username, setUsername] = useState("")
+    const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [error, setError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsLoading(true)
         setError("")
 
-        // Simulate network delay
-        setTimeout(() => {
-            if (username === "admin" && password === "admin123") {
+        // Allow hardcoded admin login
+        if (email === "admin" && password === "admin123") {
+            setTimeout(() => {
+                localStorage.setItem("huristi_session", JSON.stringify({
+                    email: "admin",
+                    role: "admin",
+                    loggedInAt: Date.now(),
+                }))
                 router.push("/dashboard")
-            } else {
-                setError("Invalid username or password. Try admin/admin123")
+            }, 800)
+            return
+        }
+
+        try {
+            // Check users table in Supabase
+            // Since this is a custom table with plain password_hash (from standard insert)
+            // we look up by email and check if the password matches.
+            const { data: user, error: queryError } = await supabase
+                .from('users')
+                .select('id, email, password_hash, name')
+                .eq('email', email)
+                .single()
+
+            if (queryError || !user) {
+                setError("Invalid email address or password.")
                 setIsLoading(false)
+                return
             }
-        }, 800)
+
+            if (user.password_hash !== password) {
+                setError("Invalid email address or password.")
+                setIsLoading(false)
+                return
+            }
+
+            // Set auth session
+            localStorage.setItem("huristi_session", JSON.stringify({
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                role: "user",
+                loggedInAt: Date.now(),
+            }))
+
+            router.push("/dashboard")
+
+        } catch (err: any) {
+            setError("An unexpected error occurred during login.")
+            setIsLoading(false)
+        }
     }
 
     return (
@@ -44,9 +86,9 @@ export default function LoginPage() {
                         Sign in to your account
                     </h2>
                     <p className="mt-2 text-center text-sm text-gray-600">
-                        Or{" "}
-                        <Link href="/" className="font-medium text-[#0066FF] hover:text-blue-500 transition-colors">
-                            return to home page
+                        Don&apos;t have an account?{" "}
+                        <Link href="/signup" className="font-medium text-[#0066FF] hover:text-blue-500 transition-colors">
+                            Create one now
                         </Link>
                     </p>
                 </motion.div>
@@ -61,22 +103,22 @@ export default function LoginPage() {
                 <div className="bg-white py-8 px-4 border border-gray-100 shadow-xl clip-diagonal-top-left sm:px-10">
                     <form className="space-y-6" onSubmit={handleLogin}>
                         <div>
-                            <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                                Username
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                                Email address
                             </label>
                             <div className="mt-1 relative rounded-none shadow-sm">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <User className="h-5 w-5 text-gray-400" />
+                                    <Mail className="h-5 w-5 text-gray-400" />
                                 </div>
                                 <input
-                                    id="username"
-                                    name="username"
+                                    id="email"
+                                    name="email"
                                     type="text"
                                     required
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
                                     className="focus:ring-[#0066FF] focus:border-[#0066FF] block w-full pl-10 sm:text-sm border-gray-300 bg-gray-50 p-3 border outline-none transition-colors"
-                                    placeholder="admin"
+                                    placeholder="you@company.com"
                                 />
                             </div>
                         </div>
@@ -133,9 +175,9 @@ export default function LoginPage() {
                             </div>
 
                             <div className="text-sm">
-                                <a href="#" className="font-medium text-[#0066FF] hover:text-blue-500 transition-colors">
-                                    Forgot your password?
-                                </a>
+                                <Link href="/signup" className="font-medium text-[#0066FF] hover:text-blue-500 transition-colors">
+                                    Register instead
+                                </Link>
                             </div>
                         </div>
 
@@ -151,7 +193,7 @@ export default function LoginPage() {
                         </div>
 
                         <div className="mt-6 text-xs text-center text-gray-500 border-t border-gray-100 pt-6">
-                            <p>Demo Credentials:</p>
+                            <p>Admin Credentials:</p>
                             <div className="flex justify-center gap-4 border border-gray-200 py-2 mt-2 bg-gray-50">
                                 <div><span className="font-semibold text-gray-700">Admin:</span> admin / admin123</div>
                             </div>
