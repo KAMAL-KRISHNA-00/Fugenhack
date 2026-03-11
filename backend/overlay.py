@@ -6,6 +6,8 @@ import threading
 import time
 import tkinter as tk
 import psutil
+import ctypes
+import ctypes.wintypes
 
 from killswitch import HardwareKillSwitch
 from pairing_page import PairingPage, ensure_pairing_config, load_pairing_config, is_device_paired, sync_pairing_from_supabase
@@ -34,6 +36,8 @@ class HuristiOverlay:
 
         self.detector_process = None
         self.hotkey_listener = None
+        self.win_hotkey_thread = None
+        self.win_hotkey_registered = False
         self.hotkey_bound_local = False
         self.overlay_visible = False
         self.paired_mode = False
@@ -98,6 +102,13 @@ class HuristiOverlay:
             self.status_var.set(f"SYSTEM: START FAILED ({e})")
 
     def _on_close(self):
+        if self.win_hotkey_registered:
+            try:
+                ctypes.windll.user32.UnregisterHotKey(None, 1)
+            except Exception:
+                pass
+            self.win_hotkey_registered = False
+
         if self.hotkey_listener:
             self.hotkey_listener.stop()
 
@@ -244,18 +255,68 @@ class HuristiOverlay:
         if not self.paired_mode:
             return
 
+        # Always bind local fallback in case focus is within overlay windows.
+        if not self.hotkey_bound_local:
+            self.root.bind_all("<Control-Alt-h>", lambda _e: self._toggle_overlay())
+            self.root.bind_all("<Control-Alt-H>", lambda _e: self._toggle_overlay())
+            self.hotkey_bound_local = True
+
+        # Try Windows native global hotkey first (more reliable than pynput on some setups).
+        if os.name == "nt" and self._start_windows_hotkey_listener():
+            self.shortcut_var.set("Ctrl+Alt+H: Global HUD toggle active")
+            return
+
         if keyboard is None:
             self.shortcut_var.set("pynput missing: using local Ctrl+Alt+H")
-            if not self.hotkey_bound_local:
-                self.root.bind("<Control-Alt-h>", lambda _e: self._toggle_overlay())
-                self.hotkey_bound_local = True
             return
 
         if self.hotkey_listener:
             return
 
-        self.hotkey_listener = keyboard.GlobalHotKeys({"<ctrl>+<alt>+h": self._request_toggle})
-        self.hotkey_listener.start()
+        try:
+            self.hotkey_listener = keyboard.GlobalHotKeys({
+                "<ctrl>+<alt>+h": self._request_toggle,
+                "<ctrl>+<alt>+H": self._request_toggle,
+            })
+            self.hotkey_listener.start()
+            self.shortcut_var.set("Ctrl+Alt+H: Global HUD toggle active")
+            _debug("Global hotkey started via pynput")
+        except Exception as exc:
+            _debug(f"pynput global hotkey failed: {exc}")
+            self.shortcut_var.set("Global hotkey unavailable; local Ctrl+Alt+H only")
+
+    def _start_windows_hotkey_listener(self):
+        if self.win_hotkey_registered:
+            return True
+
+        try:
+            user32 = ctypes.windll.user32
+            MOD_ALT = 0x0001
+            MOD_CONTROL = 0x0002
+            VK_H = 0x48
+
+            if not user32.RegisterHotKey(None, 1, MOD_CONTROL | MOD_ALT, VK_H):
+                return False
+
+            self.win_hotkey_registered = True
+            _debug("Global hotkey started via RegisterHotKey")
+
+            def _pump():
+                MSG = ctypes.wintypes.MSG
+                msg = MSG()
+                while self.paired_mode and self.win_hotkey_registered:
+                    result = user32.GetMessageW(ctypes.byref(msg), None, 0, 0)
+                    if result <= 0:
+                        break
+                    if msg.message == 0x0312 and msg.wParam == 1:  # WM_HOTKEY
+                        self.root.after(0, self._toggle_overlay)
+
+            self.win_hotkey_thread = threading.Thread(target=_pump, daemon=True)
+            self.win_hotkey_thread.start()
+            return True
+        except Exception as exc:
+            _debug(f"RegisterHotKey failed: {exc}")
+            return False
 
     def _request_toggle(self):
         self.root.after(0, self._toggle_overlay)
