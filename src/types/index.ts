@@ -1,4 +1,4 @@
-export type CommandType = 'full_lockdown' | 'kill_camera' | 'kill_mic' | 'kill_network' | 'restore_all';
+export type CommandType = 'full_lockdown' | 'kill_camera' | 'kill_mic' | 'restore_all' | 'restore_device';
 
 export interface LogEntry {
     id: string;
@@ -18,7 +18,6 @@ export interface SlaveDevice {
     camera_active: boolean;
     camera_locked: boolean;
     mic_locked: boolean;
-    network_locked: boolean;
     cpu_percent: number;
     ram_percent: number;
     disk_percent: number;

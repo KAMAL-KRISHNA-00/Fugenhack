@@ -1,6 +1,8 @@
 from sentinel import RegistrySentinel
 from analyzer import GhostSentryAnalyzer
 from killswitch import HardwareKillSwitch
+from supabase_client import SupabasePairingClient
+import psutil
 import time
 import sys
 import json
@@ -34,14 +36,59 @@ def publish_runtime_status(status_path, payload):
     except Exception:
         pass
 
+
+def publish_device_status(client, device_id, active_apps, analysis_rows, threat_detected):
+    if not client or not client.enabled or not device_id:
+        return
+
+    cpu_usage = int(round(psutil.cpu_percent(interval=None)))
+    ram_usage = int(round(psutil.virtual_memory().percent))
+    disk_usage = int(round(psutil.disk_usage("/").percent))
+
+    camera_app = ""
+    mic_app = ""
+    for app in active_apps:
+        sensor = str(app.get("sensor", "")).lower()
+        app_name = str(app.get("name", "")).strip()
+        if sensor == "webcam" and not camera_app:
+            camera_app = app_name
+        if sensor == "microphone" and not mic_app:
+            mic_app = app_name
+
+    max_score = 0
+    for row in analysis_rows or []:
+        try:
+            max_score = max(max_score, int(row.get("score", 0)))
+        except Exception:
+            pass
+    threat_score = max(max_score, 85 if threat_detected else 0)
+
+    ok = client.upsert_device_status(
+        device_id=device_id,
+        cpu_usage=cpu_usage,
+        ram_usage=ram_usage,
+        disk_usage=disk_usage,
+        camera_app=camera_app,
+        mic_app=mic_app,
+        threat_score=threat_score,
+    )
+
+    if ok:
+        print(
+            f"\n[status] pushed device_status | device_id={device_id} "
+            f"cpu={cpu_usage}% ram={ram_usage}% disk={disk_usage}% threat={threat_score}"
+        )
+
 def main():
     # 1. Initialize all modules
     sentinel = RegistrySentinel(debug=True)
     detective = GhostSentryAnalyzer(upload_threshold_kb=100)
     detective.threat_threshold = 55
     killer = HardwareKillSwitch()
+    pairing_client = SupabasePairingClient()
     status_path = os.path.join(os.path.dirname(__file__), "runtime_status.json")
     config_path = os.path.join(os.path.dirname(__file__), "config.json")
+    last_status_push_ts = 0.0
     
     print("="*40)
     print(" HURISTI SYSTEM: [ONLINE] ")
@@ -68,6 +115,8 @@ def main():
                 sys.stdout.flush()
                 time.sleep(2)
                 continue
+
+            device_id = str(config.get("device_id") or "").strip()
 
             # STEP 1: Sentinel checks for ANY hardware access
             # We check both webcam and mic
@@ -105,6 +154,15 @@ def main():
                     disabled = killer.disable_all_capture()
                     ui_payload["kill_attempted"] = True
                     ui_payload["kill_success"] = bool(disabled)
+
+                    # Reflect local kill-switch action into devices table flags.
+                    if disabled and pairing_client.enabled and device_id:
+                        pairing_client.update_device_controls(
+                            device_id=device_id,
+                            camera_enabled=False,
+                            mic_enabled=False,
+                        )
+
                     publish_runtime_status(status_path, ui_payload)
                     
                     if disabled:
@@ -117,6 +175,18 @@ def main():
                 # Optional: Visual heartbeat to show it's scanning
                 sys.stdout.write("\r[*] Heartbeat: System Clear...")
                 sys.stdout.flush()
+
+            # Push local metrics + active app snapshot to Supabase every 10 seconds.
+            now = time.time()
+            if now - last_status_push_ts >= 10:
+                publish_device_status(
+                    client=pairing_client,
+                    device_id=device_id,
+                    active_apps=active_apps,
+                    analysis_rows=ui_payload.get("analysis", []),
+                    threat_detected=bool(ui_payload.get("threat_detected")),
+                )
+                last_status_push_ts = now
 
             publish_runtime_status(status_path, ui_payload)
 

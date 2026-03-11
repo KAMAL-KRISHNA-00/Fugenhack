@@ -1,5 +1,7 @@
 {
-  "paired": false,
-  "device_id": "ca32ecb1-5015-4d80-849f-337c41139252",
+  "paired": true,
+  "device_id": "bac8034a-b362-4274-877b-2b1a2a87a48c",
+  "user_id": "81485f1e-1090-457f-b30e-d24054866b52",
+  "pair_token": "060793",
   "access_token": null
 }

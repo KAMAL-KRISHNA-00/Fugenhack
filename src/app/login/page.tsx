@@ -19,28 +19,14 @@ export default function LoginPage() {
         setIsLoading(true)
         setError("")
 
-        // Allow hardcoded admin login
-        if (email === "admin" && password === "admin123") {
-            setTimeout(() => {
-                localStorage.setItem("huristi_session", JSON.stringify({
-                    email: "admin",
-                    role: "admin",
-                    loggedInAt: Date.now(),
-                }))
-                router.push("/dashboard")
-            }, 800)
-            return
-        }
-
         try {
-            // Check users table in Supabase
-            // Since this is a custom table with plain password_hash (from standard insert)
-            // we look up by email and check if the password matches.
+            const normalizedEmail = email.trim().toLowerCase()
+
             const { data: user, error: queryError } = await supabase
                 .from('users')
-                .select('id, email, password_hash, name')
-                .eq('email', email)
-                .single()
+                .select('id, email, password_hash, name, devices')
+                .eq('email', normalizedEmail)
+                .maybeSingle()
 
             if (queryError || !user) {
                 setError("Invalid email address or password.")
@@ -59,13 +45,14 @@ export default function LoginPage() {
                 id: user.id,
                 email: user.email,
                 name: user.name,
+                devices: Array.isArray(user.devices) ? user.devices : [],
                 role: "user",
                 loggedInAt: Date.now(),
             }))
 
             router.push("/dashboard")
 
-        } catch (err: any) {
+        } catch {
             setError("An unexpected error occurred during login.")
             setIsLoading(false)
         }
@@ -190,13 +177,6 @@ export default function LoginPage() {
                                 {isLoading ? "Authenticating..." : "Sign in"}
                                 {!isLoading && <ArrowRight className="w-4 h-4" />}
                             </button>
-                        </div>
-
-                        <div className="mt-6 text-xs text-center text-gray-500 border-t border-gray-100 pt-6">
-                            <p>Admin Credentials:</p>
-                            <div className="flex justify-center gap-4 border border-gray-200 py-2 mt-2 bg-gray-50">
-                                <div><span className="font-semibold text-gray-700">Admin:</span> admin / admin123</div>
-                            </div>
                         </div>
                     </form>
                 </div>

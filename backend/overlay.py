@@ -129,6 +129,19 @@ class HuristiOverlay:
             self.pairing_page = PairingPage(self.root, device_id=device_id)
             self.pairing_page.set_status("Waiting for pairing confirmation in config.json")
 
+        # Immediate cloud sync on entering pairing mode:
+        # 1) ensure row exists in devices table
+        # 2) fetch latest paired/user/token values
+        synced = sync_pairing_from_supabase(self.config_path)
+        if self.pairing_page:
+            self.pairing_page.set_pair_code(synced.get("pair_token"))
+            self.pairing_page.set_status("Waiting for pairing... complete in web dashboard")
+
+        if is_device_paired(synced):
+            _debug("Device already paired after immediate sync")
+            self._enter_paired_mode()
+            return
+
         if not self._pairing_poll_started:
             self._pairing_poll_started = True
             self.root.after(1500, self._poll_pairing_status)
@@ -161,6 +174,8 @@ class HuristiOverlay:
 
     def _poll_pairing_status(self):
         config = sync_pairing_from_supabase(self.config_path)
+        if self.pairing_page:
+            self.pairing_page.set_pair_code(config.get("pair_token"))
         if is_device_paired(config):
             _debug("Pairing confirmed during polling")
             self._enter_paired_mode()
@@ -205,6 +220,22 @@ class HuristiOverlay:
             if mic_desired != mic_actual:
                 _debug(f"Mic mismatch: desired={mic_desired} actual={mic_actual} → applying")
                 device_controller.set_mic_enabled(mic_desired)
+
+            # Re-check actual hardware state after apply attempts.
+            camera_after = device_controller.get_camera_enabled()
+            mic_after = device_controller.get_mic_enabled()
+
+            # If local state still diverges (e.g., no admin rights), reflect reality to DB.
+            if camera_after != camera_desired or mic_after != mic_desired:
+                _debug(
+                    "Apply mismatch persisted; syncing actual hardware state back to DB "
+                    f"(camera={camera_after}, mic={mic_after})"
+                )
+                client.update_device_controls(
+                    device_id=device_id,
+                    camera_enabled=camera_after,
+                    mic_enabled=mic_after,
+                )
 
         threading.Thread(target=_fetch_and_apply, daemon=True).start()
         self.root.after(5000, self._poll_device_settings)

@@ -9,51 +9,79 @@ import Image from "next/image"
 import { Sparkline } from '@/components/Sparkline'
 import { SlaveDevice, LogEntry, CommandType } from '@/types'
 import SettingsView from './SettingsView'
+import { supabase } from '@/utils/supabase/client'
 
-// Mock data for initial UI build
-const MOCK_DEVICES: Record<string, SlaveDevice> = {
-    "LAPTOP-ALPHA": {
-        device_id: "LAPTOP-ALPHA",
-        hostname: "LAPTOP-ALPHA",
-        ip: "192.168.1.42",
-        platform: "Windows",
-        status: "online",
-        threat_score: 85,
-        threat_history: Array.from({ length: 60 }, () => Math.random() * 100),
-        camera_active: true,
-        camera_locked: false,
-        mic_locked: false,
-        network_locked: false,
-        cpu_percent: 62.4,
-        ram_percent: 48.1,
-        disk_percent: 55.0,
-        suspicious_processes: [],
-        active_camera_apps: ["python.exe"],
-    },
-    "DESKTOP-BETA": {
-        device_id: "DESKTOP-BETA",
-        hostname: "DESKTOP-BETA",
-        ip: "192.168.1.105",
-        platform: "Windows",
-        status: "online",
-        threat_score: 12,
-        threat_history: Array.from({ length: 60 }, () => Math.random() * 20),
-        camera_active: false,
-        camera_locked: false,
-        mic_locked: false,
-        network_locked: false,
-        cpu_percent: 12.0,
-        ram_percent: 32.0,
-        disk_percent: 45.0,
-        suspicious_processes: [],
-        active_camera_apps: [],
+type DashboardSession = {
+    id?: string
+    email?: string
+    name?: string
+    devices?: string[]
+}
+
+type DeviceStatusRow = {
+    cpu_usage?: number | null
+    ram_usage?: number | null
+    disk_usage?: number | null
+    camera_app?: string | null
+    mic_app?: string | null
+    threat_score?: number | null
+}
+
+type DeviceRow = {
+    device_id: string
+    device_name?: string | null
+    os?: string | null
+    camera_enabled?: boolean | null
+    mic_enabled?: boolean | null
+    last_seen?: string | null
+    device_status?: DeviceStatusRow | DeviceStatusRow[] | null
+}
+
+const normalizeDeviceStatus = (status: DeviceRow['device_status']): DeviceStatusRow | null => {
+    if (!status) {
+        return null
     }
-};
 
-const MOCK_LOGS: LogEntry[] = [
-    { id: '1', timestamp: Date.now(), device_id: 'LAPTOP-ALPHA', event: 'BREACH DETECTED: Suspicious process activity' },
-    { id: '2', timestamp: Date.now() - 50000, device_id: 'DESKTOP-BETA', event: 'CONNECTED successfully' },
-];
+    if (Array.isArray(status)) {
+        return status[0] ?? null
+    }
+
+    return status
+}
+
+const buildThreatHistory = (threatScore: number) => {
+    return Array.from({ length: 24 }, (_value, index) => {
+        const spread = (index % 5) * 2
+        return Math.max(0, Math.min(100, threatScore - 4 + spread))
+    })
+}
+
+const mapDeviceRowToSlaveDevice = (row: DeviceRow): SlaveDevice => {
+    const status = normalizeDeviceStatus(row.device_status)
+    const threatScore = Number(status?.threat_score ?? 0)
+    const cameraApp = String(status?.camera_app ?? "").trim()
+    const micApp = String(status?.mic_app ?? "").trim()
+    const lastSeenMs = row.last_seen ? new Date(row.last_seen).getTime() : 0
+    const statusLabel = lastSeenMs && Date.now() - lastSeenMs <= 15000 ? 'online' : 'timeout'
+
+    return {
+        device_id: row.device_id,
+        hostname: row.device_name || row.device_id,
+        ip: row.device_id,
+        platform: row.os || 'Unknown',
+        status: statusLabel,
+        threat_score: threatScore,
+        threat_history: buildThreatHistory(threatScore),
+        camera_active: Boolean(cameraApp),
+        camera_locked: row.camera_enabled === false,
+        mic_locked: row.mic_enabled === false,
+        cpu_percent: Number(status?.cpu_usage ?? 0),
+        ram_percent: Number(status?.ram_usage ?? 0),
+        disk_percent: Number(status?.disk_usage ?? 0),
+        suspicious_processes: [cameraApp, micApp].filter(Boolean),
+        active_camera_apps: cameraApp ? [cameraApp] : [],
+    }
+}
 
 export default function AdminDashboard() {
     const router = useRouter()
@@ -61,22 +89,178 @@ export default function AdminDashboard() {
     const [theme, setTheme] = useState<'light' | 'dark'>('dark')
 
     // Socket & Devices State
-    const [devices, setDevices] = useState<Record<string, SlaveDevice>>(MOCK_DEVICES);
-    const [logs, setLogs] = useState<LogEntry[]>(MOCK_LOGS);
-    const [wsConnected, setWsConnected] = useState(true);
+    const [devices, setDevices] = useState<Record<string, SlaveDevice>>({});
+    const [logs, setLogs] = useState<LogEntry[]>([]);
+    const [wsConnected, setWsConnected] = useState(false);
+    const [fetchError, setFetchError] = useState("")
 
     // Modals state
     const [pairModalOpen, setPairModalOpen] = useState(false);
+    const [enteredDeviceId, setEnteredDeviceId] = useState("");
+    const [pairingLoading, setPairingLoading] = useState(false);
     const [confirmModal, setConfirmModal] = useState<{ open: boolean, type: CommandType | null, target: string, message: string }>({
         open: false, type: null, target: '', message: ''
     });
     const [autoKillAlert, setAutoKillAlert] = useState<string | null>("LAPTOP-ALPHA");
+
+    // Handle pairing authorization
+    const handlePairAuthorize = async () => {
+        if (!enteredDeviceId.trim()) {
+            alert("Please enter a device ID")
+            return
+        }
+
+        const rawSession = localStorage.getItem("huristi_session")
+        if (!rawSession) {
+            alert("Session expired. Please log in again.")
+            return
+        }
+
+        let session: DashboardSession = {}
+        try {
+            session = JSON.parse(rawSession) as DashboardSession
+        } catch {
+            alert("Invalid session. Please log in again.")
+            return
+        }
+
+        if (!session.id) {
+            alert("User ID not found. Please log in again.")
+            return
+        }
+
+        setPairingLoading(true)
+        try {
+            const response = await fetch("/api/device/pair", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    device_id: enteredDeviceId.trim(),
+                    user_id: session.id
+                })
+            })
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}))
+                throw new Error(error.message || `HTTP ${response.status}`)
+            }
+
+            const result = await response.json()
+            alert("Device paired successfully!")
+            setEnteredDeviceId("")
+            setPairModalOpen(false)
+        } catch (error) {
+            console.error("Pairing error:", error)
+            alert(`Pairing failed: ${error instanceof Error ? error.message : "Unknown error"}`)
+        } finally {
+            setPairingLoading(false)
+        }
+    }
 
     // Auth guard — redirect if no session
     useEffect(() => {
         const session = localStorage.getItem("huristi_session")
         if (!session) {
             router.replace("/login")
+        }
+    }, [router])
+
+    useEffect(() => {
+        let cancelled = false
+
+        const fetchDevices = async () => {
+            const rawSession = localStorage.getItem("huristi_session")
+            if (!rawSession) {
+                router.replace("/login")
+                return
+            }
+
+            let session: DashboardSession = {}
+            try {
+                session = JSON.parse(rawSession) as DashboardSession
+            } catch {
+                localStorage.removeItem("huristi_session")
+                router.replace("/login")
+                return
+            }
+
+            const { data: authData } = await supabase.auth.getUser()
+            const authUserId = authData.user?.id ?? ''
+            const sessionUserId = typeof session.id === 'string' ? session.id : ''
+            const userId = authUserId || sessionUserId
+            if (!userId) {
+                setFetchError('Missing user session id. Please sign in again.')
+                setWsConnected(false)
+                return
+            }
+
+            const { data, error } = await supabase
+                .from('devices')
+                .select(`
+                    device_id,
+                    device_name,
+                    os,
+                    camera_enabled,
+                    mic_enabled,
+                    last_seen,
+                    device_status (
+                        cpu_usage,
+                        ram_usage,
+                        disk_usage,
+                        camera_app,
+                        mic_app,
+                        threat_score
+                    )
+                `)
+                .eq('user_id', userId)
+
+            if (cancelled) {
+                return
+            }
+
+            if (error) {
+                setFetchError(error.message || 'Failed to load devices.')
+                setWsConnected(false)
+                return
+            }
+
+            const rows = (data ?? []) as DeviceRow[]
+            const nextDevices = rows.reduce<Record<string, SlaveDevice>>((acc, row) => {
+                acc[row.device_id] = mapDeviceRowToSlaveDevice(row)
+                return acc
+            }, {})
+
+            const nextLogs: LogEntry[] = rows.map((row, index) => {
+                const status = normalizeDeviceStatus(row.device_status)
+                const cameraApp = String(status?.camera_app ?? '').trim()
+                const micApp = String(status?.mic_app ?? '').trim()
+                const threatScore = Number(status?.threat_score ?? 0)
+                const suffix = cameraApp || micApp
+                    ? ` | active: ${[cameraApp, micApp].filter(Boolean).join(', ')}`
+                    : ''
+
+                return {
+                    id: `${row.device_id}-${index}`,
+                    timestamp: Date.now() - index * 1000,
+                    device_id: row.device_id,
+                    event: `STATUS SYNC: threat=${Math.round(threatScore)} cpu=${Math.round(Number(status?.cpu_usage ?? 0))}% ram=${Math.round(Number(status?.ram_usage ?? 0))}%${suffix}`,
+                }
+            })
+
+            setDevices(nextDevices)
+            setLogs(nextLogs)
+            setFetchError('')
+            setWsConnected(true)
+        }
+
+        fetchDevices()
+        const intervalId = window.setInterval(fetchDevices, 10000)
+
+        return () => {
+            cancelled = true
+            window.clearInterval(intervalId)
         }
     }, [router])
 
@@ -95,13 +279,13 @@ export default function AdminDashboard() {
     const allDevices = Object.values(devices);
     const onlineCount = allDevices.filter(d => d.status === 'online').length;
     const threatCount = allDevices.filter(d => d.threat_score >= 50).length;
-    const lockedCount = allDevices.filter(d => d.camera_locked || d.mic_locked || d.network_locked).length;
+    const lockedCount = allDevices.filter(d => d.camera_locked || d.mic_locked).length;
 
     const handleCommand = (type: CommandType, target: string, msg: string) => {
         setConfirmModal({ open: true, type, target, message: msg });
     };
 
-    const executeCommand = () => {
+    const executeCommand = async () => {
         const newLog: LogEntry = {
             id: Date.now().toString(),
             timestamp: Date.now(),
@@ -109,6 +293,76 @@ export default function AdminDashboard() {
             event: `COMMAND SENT: ${confirmModal.type} targeting ${confirmModal.target}`
         };
         setLogs(prev => [newLog, ...prev].slice(0, 200));
+
+        const deviceIds = confirmModal.target === 'all' 
+            ? Object.keys(devices)
+            : [confirmModal.target];
+
+        try {
+            // Handle restore commands
+            if (confirmModal.type === 'restore_device' || confirmModal.type === 'restore_all') {
+                console.log("[DASHBOARD] Calling restore API with devices:", deviceIds);
+                const response = await fetch("/api/device/restore", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        device_ids: deviceIds
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error.error || `HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log("[DASHBOARD] Restore success:", result);
+                alert("Devices restored successfully!");
+            }
+            // Handle kill commands
+            else if (confirmModal.type === 'kill_camera' || confirmModal.type === 'kill_mic' || confirmModal.type === 'full_lockdown') {
+                let action = 'kill_both';
+                if (confirmModal.type === 'kill_camera') {
+                    action = 'kill_camera';
+                } else if (confirmModal.type === 'kill_mic') {
+                    action = 'kill_mic';
+                } else if (confirmModal.type === 'full_lockdown') {
+                    action = 'kill_both';
+                }
+
+                console.log("[DASHBOARD] Calling kill API with action:", action, "devices:", deviceIds);
+                const response = await fetch("/api/device/kill", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        device_ids: deviceIds,
+                        action: action
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error.error || `HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log("[DASHBOARD] Kill success:", result);
+                alert(`Devices killed successfully (${action})!`);
+                
+                if (confirmModal.target === 'all' && action === 'kill_both') {
+                    setAutoKillAlert('ALL_DEVICES');
+                    setTimeout(() => setAutoKillAlert(null), 4000);
+                }
+            }
+        } catch (error) {
+            console.error("[DASHBOARD] Command error:", error);
+            alert(`Command failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+        }
+
         setConfirmModal({ open: false, type: null, target: '', message: '' });
     };
 
@@ -259,6 +513,12 @@ export default function AdminDashboard() {
                     </div>
                 </header>
 
+                {fetchError && (
+                    <div className="mx-4 md:mx-8 mt-4 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+                        {fetchError}
+                    </div>
+                )}
+
                 {/* Global Controls */}
                 {activeTab === 'overview' && (
                     <div className="flex items-center gap-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 md:px-8 py-3 shrink-0 flex-wrap">
@@ -270,9 +530,6 @@ export default function AdminDashboard() {
                         </button>
                         <button onClick={() => handleCommand('kill_mic', 'all', '🎙 Kill mics on ALL devices?')} className="flex items-center gap-2 pl-10 pr-5 py-2.5 text-xs font-bold tracking-wider transition-colors bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:border-yellow-500 dark:hover:border-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-400 clip-diagonal-top-left">
                             <MicOff className="w-4 h-4" /> KILL MICS
-                        </button>
-                        <button onClick={() => handleCommand('kill_network', 'all', '📡 Kill networks on ALL devices?')} className="flex items-center gap-2 pl-10 pr-5 py-2.5 text-xs font-bold tracking-wider transition-colors bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 clip-diagonal-top-left">
-                            <WifiOff className="w-4 h-4" /> KILL NETWORKS
                         </button>
                         <button onClick={() => handleCommand('restore_all', 'all', '↺ Restore ALL devices to normal?')} className="flex items-center gap-2 pl-10 pr-5 py-2.5 text-xs font-bold tracking-wider transition-colors bg-white dark:bg-gray-800 border border-[#0066FF] dark:border-blue-500 text-[#0066FF] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-700 clip-diagonal-top-left">
                             <RotateCcw className="w-4 h-4" /> RESTORE ALL
@@ -332,6 +589,17 @@ export default function AdminDashboard() {
                                                 </div>
                                             </div>
 
+                                            <div className="flex gap-2 mt-1">
+                                                <div className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider border rounded-sm transition-colors ${d.camera_locked ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800' : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-100 dark:border-green-800'}`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${d.camera_locked ? 'bg-red-500' : 'bg-green-500'}`}></span>
+                                                    CAMERA {d.camera_locked ? 'DISABLED' : 'ENABLED'}
+                                                </div>
+                                                <div className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider border rounded-sm transition-colors ${d.mic_locked ? 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border-yellow-100 dark:border-yellow-800' : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-100 dark:border-green-800'}`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${d.mic_locked ? 'bg-yellow-500' : 'bg-green-500'}`}></span>
+                                                    MIC {d.mic_locked ? 'DISABLED' : 'ENABLED'}
+                                                </div>
+                                            </div>
+
                                             <Sparkline history={d.threat_history} color={scoreColor(d.threat_score)} />
 
                                             <div className="grid grid-cols-3 gap-2 mt-1">
@@ -352,7 +620,7 @@ export default function AdminDashboard() {
                                             <div className="flex gap-2 flex-wrap mt-2 pt-4 border-t border-gray-100 dark:border-gray-800">
                                                 <button onClick={() => handleCommand('kill_camera', d.device_id, `📷 Kill camera on ${d.device_id}?`)} className="flex-1 px-3 py-2.5 text-[11px] uppercase tracking-wider font-bold bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-500 dark:hover:border-red-400 hover:text-red-600 dark:hover:text-red-400 transition-colors clip-diagonal-sm flex items-center justify-center whitespace-nowrap">📷 CAM</button>
                                                 <button onClick={() => handleCommand('kill_mic', d.device_id, `🎙 Kill mic on ${d.device_id}?`)} className="flex-1 px-3 py-2.5 text-[11px] uppercase tracking-wider font-bold bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-yellow-500 dark:hover:border-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors clip-diagonal-sm flex items-center justify-center whitespace-nowrap">🎙 MIC</button>
-                                                <button onClick={() => handleCommand('kill_network', d.device_id, `📡 Kill network on ${d.device_id}?`)} className="flex-1 px-3 py-2.5 text-[11px] uppercase tracking-wider font-bold bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors clip-diagonal-sm flex items-center justify-center whitespace-nowrap">📡 NET</button>
+                                                <button onClick={() => handleCommand('restore_device', d.device_id, `↺ Restore ${d.device_id}?`)} className="flex-1 px-3 py-2.5 text-[11px] uppercase tracking-wider font-bold bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-green-200 dark:border-green-800 hover:border-green-500 dark:hover:border-green-400 hover:text-green-600 dark:hover:text-green-400 transition-colors clip-diagonal-sm flex items-center justify-center whitespace-nowrap">↺ RESTORE</button>
                                                 <button onClick={() => handleCommand('full_lockdown', d.device_id, `🔒 Full lockdown on ${d.device_id}?`)} className="w-full mt-1 px-4 py-3 text-xs uppercase tracking-widest font-bold bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-600 dark:hover:bg-red-600 hover:text-white dark:hover:text-white transition-colors clip-diagonal-sm flex items-center justify-center">LOCKDOWN</button>
                                             </div>
 
@@ -393,20 +661,16 @@ export default function AdminDashboard() {
                         <div className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6 tracking-tight flex items-center gap-3">
                             <Shield className="w-6 h-6 text-[#0066FF] dark:text-blue-500" /> PAIRED NEW DEVICE
                         </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 mb-6 leading-relaxed p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 rounded-sm">
-                            On the slave laptop, run <code className="font-bold text-[#0066FF] dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40 px-1 py-0.5">python slave_agent.py</code>. A 6-digit code will appear on that screen.
-                        </div>
-                        <div className="mb-5">
-                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Slave IP Address</label>
-                            <input type="text" placeholder="192.168.1.x" className="w-full p-3 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 outline-none focus:border-[#0066FF] dark:focus:border-blue-500 transition-colors" />
+                        <div className="text-sm text-gray-600 dark:text-gray-400 mb-8 leading-relaxed p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 rounded-sm">
+                            On the slave laptop, run <code className="font-bold text-[#0066FF] dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40 px-1 py-0.5">python slave_agent.py</code>. The device ID will appear on that screen. Enter it below to authorize the pairing.
                         </div>
                         <div className="mb-8">
-                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">6-Digit Pairing Code</label>
-                            <input type="text" maxLength={6} placeholder="000000" className="w-full py-4 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 outline-none focus:border-[#0066FF] dark:focus:border-blue-500 text-center text-3xl font-mono tracking-[0.5em] transition-colors" />
+                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-500 uppercase tracking-wider mb-2">Device ID</label>
+                            <input type="text" placeholder="DESKTOP-BETA" value={enteredDeviceId} onChange={(e) => setEnteredDeviceId(e.target.value)} disabled={pairingLoading} className="w-full py-4 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 outline-none focus:border-[#0066FF] dark:focus:border-blue-500 text-center text-xl font-mono tracking-wider transition-colors disabled:opacity-50" />
                         </div>
                         <div className="flex gap-3 justify-end">
-                            <button onClick={() => setPairModalOpen(false)} className="px-6 py-2.5 text-sm font-bold text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">CANCEL</button>
-                            <button onClick={() => setPairModalOpen(false)} className="px-6 py-2.5 text-sm font-bold text-white bg-[#0066FF] dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 transition-colors clip-diagonal-top-left">AUTHORIZE</button>
+                            <button onClick={() => { setPairModalOpen(false); setEnteredDeviceId(""); }} disabled={pairingLoading} className="px-6 py-2.5 text-sm font-bold text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50">CANCEL</button>
+                            <button onClick={handlePairAuthorize} disabled={pairingLoading} className="px-6 py-2.5 text-sm font-bold text-white bg-[#0066FF] dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 transition-colors clip-diagonal-top-left disabled:opacity-50">{pairingLoading ? "PAIRING..." : "AUTHORIZE"}</button>
                         </div>
                     </motion.div>
                 </div>

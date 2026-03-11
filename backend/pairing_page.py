@@ -12,6 +12,8 @@ from supabase_client import SupabasePairingClient
 DEFAULT_CONFIG: Dict[str, Any] = {
     "paired": False,
     "device_id": None,
+    "user_id": None,
+    "pair_token": None,
     "access_token": None,
 }
 
@@ -42,12 +44,16 @@ def ensure_pairing_config(config_path: str) -> Dict[str, Any]:
     config.update({
         "paired": bool(data.get("paired", False)),
         "device_id": data.get("device_id"),
+        "user_id": data.get("user_id"),
+        "pair_token": data.get("pair_token"),
         "access_token": data.get("access_token"),
     })
 
     if not isinstance(config.get("device_id"), str) or not config.get("device_id"):
         config["device_id"] = str(uuid.uuid4())
         config["paired"] = False
+        config["user_id"] = None
+        config["pair_token"] = None
         config["access_token"] = None
         _debug(f"Generated new device_id: {config['device_id']}")
 
@@ -118,10 +124,17 @@ def sync_pairing_from_supabase(config_path: str) -> Dict[str, Any]:
     client.update_last_seen(device_id)
 
     paired = bool(row.get("paired"))
+    user_id = row.get("user_id")
+    pair_token = row.get("pair_token")
     token = row.get("access_token")
-    _debug(f"Supabase sync result | device_id={device_id} | paired={paired} | has_access_token={bool(token)}")
+    _debug(
+        f"Supabase sync result | device_id={device_id} | paired={paired} "
+        f"| user_id={user_id} | pair_token={pair_token} | has_access_token={bool(token)}"
+    )
 
     config["paired"] = paired
+    config["user_id"] = user_id if isinstance(user_id, str) else None
+    config["pair_token"] = pair_token if isinstance(pair_token, str) else config.get("pair_token")
     config["access_token"] = token if isinstance(token, str) else config.get("access_token")
     _save_config(config_path, config)
     return config
@@ -184,6 +197,15 @@ class PairingPage:
             font=("Segoe UI", 9, "bold"),
         ).pack(side="right", padx=12)
 
+        self.code_var = tk.StringVar(value="Pairing code: waiting for server...")
+        tk.Label(
+            frame,
+            textvariable=self.code_var,
+            font=("Consolas", 10, "bold"),
+            fg="#67e8f9",
+            bg="#0b1324",
+        ).pack(anchor="w", pady=(10, 0))
+
         self.status_var = tk.StringVar(value="Waiting for pairing...")
         tk.Label(
             frame,
@@ -207,6 +229,12 @@ class PairingPage:
 
     def set_status(self, message: str) -> None:
         self.status_var.set(message)
+
+    def set_pair_code(self, pair_code: Optional[str]) -> None:
+        if isinstance(pair_code, str) and pair_code.strip():
+            self.code_var.set(f"Pairing code: {pair_code}")
+        else:
+            self.code_var.set("Pairing code: waiting for server...")
 
     def close(self) -> None:
         try:

@@ -21,8 +21,11 @@ export default function SignupPage() {
         e.preventDefault()
         setError("")
 
+        const normalizedName = name.trim()
+        const normalizedEmail = email.trim().toLowerCase()
+
         // Validation
-        if (!name.trim()) {
+        if (!normalizedName) {
             setError("Name is required.")
             return
         }
@@ -42,8 +45,14 @@ export default function SignupPage() {
             const { data: existingUser, error: checkError } = await supabase
                 .from('users')
                 .select('id')
-                .eq('email', email)
-                .single()
+                .eq('email', normalizedEmail)
+                .maybeSingle()
+
+            if (checkError) {
+                setError(checkError.message || "Failed to validate account.")
+                setIsLoading(false)
+                return
+            }
 
             if (existingUser) {
                 setError("Email is already registered. Please sign in.")
@@ -58,8 +67,9 @@ export default function SignupPage() {
                 .from('users')
                 .insert([
                     {
-                        name,
-                        email,
+                        name: normalizedName,
+                        email: normalizedEmail,
+                        devices: [],
                         password_hash: password
                     }
                 ])
@@ -77,7 +87,7 @@ export default function SignupPage() {
             // Redirect to login after a moment
             setTimeout(() => router.push("/login"), 1800)
 
-        } catch (err: any) {
+        } catch {
             setError("An unexpected error occurred.")
             setIsLoading(false)
         }

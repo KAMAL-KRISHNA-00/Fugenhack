@@ -1,4 +1,7 @@
 import os
+import random
+import string
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 try:
@@ -37,7 +40,7 @@ class SupabasePairingClient:
     def __init__(self, url: Optional[str] = None, key: Optional[str] = None):
         self.url = url or os.getenv("SUPABASE_URL", "")
         self.key = key or os.getenv("SUPABASE_ANON_KEY", "")
-        self.client: Optional[Client] = None
+        self.client: Optional[Any] = None
 
         if not self.url or not self.key:
             missing = []
@@ -108,6 +111,31 @@ class SupabasePairingClient:
             print(f"[supabase] fetch_device_settings failed: {exc}")
 
         return {}
+
+    def update_device_controls(
+        self,
+        device_id: str,
+        camera_enabled: Optional[bool] = None,
+        mic_enabled: Optional[bool] = None,
+    ) -> bool:
+        if not self.client or not device_id:
+            return False
+
+        payload: Dict[str, Any] = {}
+        if camera_enabled is not None:
+            payload["camera_enabled"] = bool(camera_enabled)
+        if mic_enabled is not None:
+            payload["mic_enabled"] = bool(mic_enabled)
+
+        if not payload:
+            return True
+
+        try:
+            self.client.table("devices").update(payload).eq("device_id", device_id).execute()
+            return True
+        except Exception as exc:
+            print(f"[supabase] update_device_controls failed: {exc}")
+            return False
 
     def update_last_seen(self, device_id: str) -> None:
         """Update the last_seen timestamp so the server knows the device is online."""
@@ -180,6 +208,7 @@ class SupabasePairingClient:
             "device_id": device_id,
             "device_name": device_name,
             "os": platform_name,
+            "pair_token": "".join(random.choices(string.digits, k=6)),
             "paired": False,
             "camera_enabled": True,
             "mic_enabled": True,
@@ -191,4 +220,35 @@ class SupabasePairingClient:
             return True
         except Exception as exc:
             print(f"[supabase] register_device_if_missing failed: {exc}")
+            return False
+
+    def upsert_device_status(
+        self,
+        device_id: str,
+        cpu_usage: int,
+        ram_usage: int,
+        disk_usage: int,
+        camera_app: str,
+        mic_app: str,
+        threat_score: int,
+    ) -> bool:
+        if not self.client or not device_id:
+            return False
+
+        payload: Dict[str, Any] = {
+            "device_id": device_id,
+            "cpu_usage": int(cpu_usage),
+            "ram_usage": int(ram_usage),
+            "disk_usage": int(disk_usage),
+            "camera_app": camera_app or "",
+            "mic_app": mic_app or "",
+            "threat_score": int(threat_score),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        try:
+            self.client.table("device_status").upsert(payload, on_conflict="device_id").execute()
+            return True
+        except Exception as exc:
+            print(f"[supabase] upsert_device_status failed: {exc}")
             return False
