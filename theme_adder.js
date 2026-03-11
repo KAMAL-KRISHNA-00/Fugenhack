@@ -1,0 +1,58 @@
+const fs = require('fs');
+
+let content = fs.readFileSync('src/app/dashboard/page.tsx', 'utf-8');
+
+if (!content.includes('const [theme, setTheme] = useState')) {
+    // 1. Add toggle button
+    content = content.replace(
+        '<div className="flex items-center gap-4">',
+        '<div className="flex items-center gap-4">\\n                            <button onClick={() => setTheme(theme === \\'light\\' ? \\'dark\\' : \\'light\\')} className="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-700 flex items-center justify-center bg-gray-100 dark:bg-gray-800 transition-colors text-gray-700 dark:text-gray-300">\\n                                {theme === \\'light\\' ? \\'☾\\' : \\'☀\\'}\\n                            </button>'
+    );
+
+    // 2. Add theme state
+    content = content.replace(
+        'const [activeTab, setActiveTab] = useState("overview")',
+        'const [activeTab, setActiveTab] = useState("overview")\\n    const [theme, setTheme] = useState<\\'light\\' | \\'dark\\'>(\\'light\\')'
+    );
+
+    // 3. Add dark class to root
+    content = content.replace(
+        '<div className="h-screen bg-gray-50 font-sans flex flex-col md:flex-row overflow-hidden relative">',
+        '<div className={`h-screen bg-gray-50 dark:bg-black font-sans flex flex-col md:flex-row overflow-hidden relative ${theme === \\'light\\' ? \\'\\' : \\'dark\\'}`}>'
+    );
+
+    const classMap = {
+        'bg-white': 'bg-white dark:bg-black',
+        'bg-gray-50': 'bg-gray-50 dark:bg-black',
+        'bg-gray-50/50': 'bg-gray-50/50 dark:bg-black',
+        'bg-gray-50/30': 'bg-gray-50/30 dark:bg-black',
+        'bg-gray-100': 'bg-gray-100 dark:bg-gray-800',
+        'bg-gray-900': 'bg-gray-900 dark:bg-white',
+        'text-gray-900': 'text-gray-900 dark:text-gray-100',
+        'text-white': 'text-white dark:text-black',
+        'text-gray-500': 'text-gray-500 dark:text-gray-400',
+        'text-gray-600': 'text-gray-600 dark:text-gray-300',
+        'text-gray-700': 'text-gray-700 dark:text-gray-200',
+        'text-gray-400': 'text-gray-400 dark:text-gray-500',
+        'text-gray-300': 'text-gray-300 dark:text-gray-700',
+        'border-gray-200': 'border-gray-200 dark:border-gray-800',
+        'border-gray-300': 'border-gray-300 dark:border-gray-600',
+        'border-gray-800': 'border-gray-800 dark:border-gray-200',
+        'bg-gray-900/60': 'bg-gray-900/60 dark:bg-white/60'
+    };
+
+    let modified = content;
+    for (const [key, value] of Object.entries(classMap)) {
+        // Safe string replace logic using split/join to avoid RegExp escaping issues
+        const regexStr = '(^|[^\\\\w-])' + key.replace(/\\/ / g, '\\\\/') + '(?![\\\\w-]|(?<=dark:) )';
+        const regex = new RegExp(regexStr, 'g');
+        modified = modified.replace(regex, '$1' + value);
+    }
+
+    // Fix some over-replaced artifacts if any (e.g., text-white dark:text-black dark:text-black)
+    modified = modified.replace(/dark:bg-black dark:bg-black/g, 'dark:bg-black');
+    modified = modified.replace(/dark:text-black dark:text-black/g, 'dark:text-black');
+
+    fs.writeFileSync('src/app/dashboard/page.tsx', modified);
+    console.log("Success");
+}
